@@ -3,6 +3,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const generateToken = require("../utils/generateToken.js");
 
+const createAuditLog = require("../utils/createAuditLog.js");
+
 const register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -36,6 +38,13 @@ const register = async (req, res) => {
         role: user.role,
       },
     });
+
+    await createAuditLog({
+      userId: user._id,
+      action: "REGISTER",
+      entity: "User",
+      entityId: user._id,
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({
@@ -43,8 +52,6 @@ const register = async (req, res) => {
     });
   }
 };
-
-
 
 //login function
 
@@ -62,10 +69,7 @@ const login = async (req, res) => {
     }
 
     // Compare password
-    const isMatch = await bcrypt.compare(
-      password,
-      user.password
-    );
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(400).json({
@@ -87,6 +91,12 @@ const login = async (req, res) => {
       },
     });
 
+    await createAuditLog({
+      userId: user._id,
+      action: "LOGIN",
+      entity: "User",
+      entityId: user._id,
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({
@@ -95,8 +105,12 @@ const login = async (req, res) => {
   }
 };
 
+const getMe = async (req, res) => {
+  res.status(200).json(req.user);
+};
 
 module.exports = {
   register,
   login,
+  getMe,
 };
