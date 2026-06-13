@@ -17,9 +17,6 @@ const TRACKED_FIELDS = [
   "products",
 ];
 
-// ---------------------------------------------------------------------
-// CREATE - new SO is always created in Draft status
-// ---------------------------------------------------------------------
 export const createSalesOrder = async (req, res) => {
   const session = await mongoose.startSession();
   try {
@@ -30,8 +27,6 @@ export const createSalesOrder = async (req, res) => {
     if (!products || products.length === 0) {
       throw new Error("At least one product is required");
     }
-
-    // Validate + snapshot product details
     const lineItems = [];
     for (const item of products) {
       const product = await Product.findById(item.product_id).session(session);
@@ -89,9 +84,6 @@ export const createSalesOrder = async (req, res) => {
   }
 };
 
-// ---------------------------------------------------------------------
-// GET ALL - supports filter by status, search by reference/customer
-// ---------------------------------------------------------------------
 export const getSalesOrders = async (req, res) => {
   try {
     const { search, status, page = 1, limit = 20 } = req.query;
@@ -120,9 +112,7 @@ export const getSalesOrders = async (req, res) => {
   }
 };
 
-// ---------------------------------------------------------------------
-// GET BY ID
-// ---------------------------------------------------------------------
+
 export const getSalesOrderById = async (req, res) => {
   try {
     const order = await SalesOrder.findById(req.params.id).populate(
@@ -133,7 +123,6 @@ export const getSalesOrderById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Sales Order not found" });
     }
 
-    // Refresh availability snapshot for each line (live free_qty)
     const productsWithAvailability = await Promise.all(
       order.products.map(async (line) => {
         const freeQty = await getFreeQty(line.product_id);
@@ -150,9 +139,6 @@ export const getSalesOrderById = async (req, res) => {
   }
 };
 
-// ---------------------------------------------------------------------
-// UPDATE (Draft only) - editing line items, customer info etc.
-// ---------------------------------------------------------------------
 export const updateSalesOrder = async (req, res) => {
   const session = await mongoose.startSession();
   try {
@@ -222,12 +208,6 @@ export const updateSalesOrder = async (req, res) => {
   }
 };
 
-// ---------------------------------------------------------------------
-// CONFIRM - Draft -> Confirmed
-// - Check availability
-// - Reserve quantity on each product
-// - (Procurement automation hook - placeholder for future PO/MO creation)
-// ---------------------------------------------------------------------
 export const confirmSalesOrder = async (req, res) => {
   const session = await mongoose.startSession();
   try {
@@ -259,7 +239,6 @@ export const confirmSalesOrder = async (req, res) => {
         });
       }
 
-      // Reserve the ordered quantity regardless of shortage
       await updateReservedQty(product._id, line.ordered_quantity, session);
     }
 
@@ -277,11 +256,6 @@ export const confirmSalesOrder = async (req, res) => {
       session,
     });
 
-    // NOTE: Procurement automation (auto-creating PO/MO for shortages)
-    // will be implemented once the Purchase/Manufacturing modules exist.
-    // `shortages` array is returned so the frontend can display a warning
-    // and/or trigger that flow.
-
     await session.commitTransaction();
     res.json({ success: true, data: order, shortages });
   } catch (err) {
@@ -292,13 +266,6 @@ export const confirmSalesOrder = async (req, res) => {
   }
 };
 
-// ---------------------------------------------------------------------
-// DELIVER - Confirmed/Partially Delivered -> Partially/Fully Delivered
-// - Update delivered_quantity per line
-// - Decrease on_hand_qty and reserved_qty by the delivered delta
-// - If all lines fully delivered -> Fully Delivered (lock everything)
-// - Else -> Partially Delivered
-// ---------------------------------------------------------------------
 export const deliverSalesOrder = async (req, res) => {
   const session = await mongoose.startSession();
   try {
@@ -312,7 +279,7 @@ export const deliverSalesOrder = async (req, res) => {
     }
 
     const before = order.toObject();
-    const { products: deliveryUpdates } = req.body; // [{ product_id, delivered_quantity }]
+    const { products: deliveryUpdates } = req.body;
 
     if (!deliveryUpdates || deliveryUpdates.length === 0) {
       throw new Error("Delivery quantities are required");
@@ -340,7 +307,6 @@ export const deliverSalesOrder = async (req, res) => {
       const delta = newDelivered - line.delivered_quantity;
 
       if (delta > 0) {
-        // Decrease physical stock
         await recordStockMovement({
           product_id: line.product_id,
           transaction_type: "sales_delivery",
@@ -352,14 +318,12 @@ export const deliverSalesOrder = async (req, res) => {
           session,
         });
 
-        // Release reservation for the delivered portion
         await updateReservedQty(line.product_id, -delta, session);
       }
 
       line.delivered_quantity = newDelivered;
     }
 
-    // Determine overall status
     const allFullyDelivered = order.products.every(
       (line) => line.delivered_quantity === line.ordered_quantity
     );
@@ -388,10 +352,6 @@ export const deliverSalesOrder = async (req, res) => {
   }
 };
 
-// ---------------------------------------------------------------------
-// CANCEL - any non-final status -> Cancelled
-// - Release any reserved quantity
-// ---------------------------------------------------------------------
 export const cancelSalesOrder = async (req, res) => {
   const session = await mongoose.startSession();
   try {
@@ -406,7 +366,6 @@ export const cancelSalesOrder = async (req, res) => {
 
     const before = order.toObject();
 
-    // Release reservations for the un-delivered portion of each line
     if (["Confirmed", "Partially Delivered"].includes(order.status)) {
       for (const line of order.products) {
         const remaining = line.ordered_quantity - line.delivered_quantity;
@@ -440,9 +399,6 @@ export const cancelSalesOrder = async (req, res) => {
   }
 };
 
-// ---------------------------------------------------------------------
-// DELETE - only Draft orders can be deleted
-// ---------------------------------------------------------------------
 export const deleteSalesOrder = async (req, res) => {
   try {
     const order = await SalesOrder.findById(req.params.id);

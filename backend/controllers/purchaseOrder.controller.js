@@ -254,7 +254,7 @@ export const receivePurchaseOrder = async (req, res) => {
     }
 
     const before = order.toObject();
-    const { products: receiptUpdates } = req.body; // [{ product_id, received_quantity }]
+    const { products: receiptUpdates } = req.body;
 
     if (!receiptUpdates || receiptUpdates.length === 0) {
       throw new Error("Received quantities are required");
