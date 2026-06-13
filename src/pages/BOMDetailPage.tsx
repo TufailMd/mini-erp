@@ -9,8 +9,9 @@ import LoadingSpinner from '../components/shared/LoadingSpinner'
 import { erpNavItems, erpFooterNavItems } from '../data/salesData'
 import { bomDetailData, finishedProductOptions, uomOptions } from '../data/bomDetailData'
 import type { PageProps, BOMStatus, BOMComponent, BOMOperation } from '../types'
+import { toast } from 'react-hot-toast'
 
-export default function BOMDetailPage({ activePage, onNavigate }: PageProps) {
+export default function BOMDetailPage({ onNavigate }: PageProps) {
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState<BOMStatus>(bomDetailData.status)
   
@@ -29,16 +30,8 @@ export default function BOMDetailPage({ activePage, onNavigate }: PageProps) {
     return () => clearTimeout(timer)
   }, [])
 
-  const handleBack = () => {
-    onNavigate('bom')
-  }
-
-  const handleCancel = () => {
-    onNavigate('bom')
-  }
-
   const handleSave = () => {
-    console.log('Saving BOM:', { finishedProduct, quantity, uom, notes, components, operations })
+    toast.success('BOM Saved successfully!')
     setStatus('Active')
   }
 
@@ -108,14 +101,14 @@ export default function BOMDetailPage({ activePage, onNavigate }: PageProps) {
           reference={bomDetailData.reference}
           status={status}
           onBack={() => onNavigate('bom')}
-          onCancel={() => onNavigate('bom')}
-          onSave={() => console.log('Save BOM')}
+          onCancel={() => { toast('Edit Cancelled'); onNavigate('bom') }}
+          onSave={handleSave}
           onViewAudit={() => onNavigate('audit-logs')}
         />
 
         <main className="flex-1 p-6">
           {loading ? (
-            <LoadingSpinner message="Loading Bill of Materials..." />
+            <LoadingSpinner />
           ) : (
             <div className="flex gap-6">
               <div className="flex-1 min-w-0">

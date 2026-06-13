@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { toast } from 'react-hot-toast'
 import ErpSidebar from '../components/sales/ErpSidebar'
 import ProductsHeader from '../components/products/ProductsHeader'
 import ProductStatCards from '../components/products/ProductStatCards'
@@ -17,8 +18,10 @@ import {
   PRODUCTS_PAGE_SIZE,
 } from '../data/productsData'
 import type { PageProps, ActiveFilter } from '../types'
+import { useErp } from '../context/ErpContext'
 
 export default function ProductsPage({ activePage, onNavigate }: PageProps) {
+  const { products: erpProducts } = useErp()
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState<ActiveFilter[]>(defaultFilters)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -31,7 +34,7 @@ export default function ProductsPage({ activePage, onNavigate }: PageProps) {
   }, [])
 
   const handleButtonClick = () => {
-    console.log('clicked')
+    toast('Action triggered')
   }
 
   const handleNewProduct = () => {
@@ -51,15 +54,27 @@ export default function ProductsPage({ activePage, onNavigate }: PageProps) {
   }
 
   const filteredProducts = useMemo(() => {
-    if (searchQuery === '') return products
+    // Map ErpProducts to UI products structure
+    const mapped = erpProducts.map(p => ({
+      id: p.id,
+      name: p.name,
+      sku: p.code,
+      category: p.id.includes('PRD') ? 'Finished Goods' : 'Components',
+      price: p.salesPrice,
+      cost: p.costPrice,
+      onHand: p.onHandQty,
+      status: p.onHandQty > 10 ? 'In Stock' : p.onHandQty > 0 ? 'Low Stock' : 'Out of Stock'
+    }))
+
+    if (searchQuery === '') return mapped
     const query = searchQuery.toLowerCase()
-    return products.filter(
+    return mapped.filter(
       (p) =>
         p.name.toLowerCase().includes(query) ||
         p.sku.toLowerCase().includes(query) ||
         p.category.toLowerCase().includes(query),
     )
-  }, [searchQuery])
+  }, [searchQuery, erpProducts])
 
   const totalPages = Math.max(
     1,

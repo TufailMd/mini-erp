@@ -18,7 +18,6 @@ export default function EntityInformation({
   customerOptions,
   onCustomerChange,
   onDateChange,
-  onAddressChange,
 }: EntityInformationProps) {
   const [showDropdown, setShowDropdown] = useState(false)
 

@@ -7,19 +7,26 @@ import VendorIntelligence from '../components/purchase/VendorIntelligence'
 import VendorActivity from '../components/purchase/VendorActivity'
 import SupplierHeatmap from '../components/purchase/SupplierHeatmap'
 import PurchasePagination from '../components/purchase/PurchasePagination'
+import Pagination from '../components/purchase/PurchasePagination'
+import { toast } from 'react-hot-toast'
 import {
   erpNavItems,
   erpFooterNavItems,
 } from '../data/salesData'
 import {
+  statusOptions,
+  dateRangeOptions,
+} from '../data/purchaseData'
+import { useErp } from '../context/ErpContext'
+import type { PageProps } from '../types'
+import {
   vendorStatCards,
   vendors,
   vendorMetrics,
   vendorActivity,
-  TOTAL_VENDORS,
-  VENDORS_PAGE_SIZE,
 } from '../data/purchaseData'
-import type { PageProps } from '../types'
+
+const PAGE_SIZE = 5
 
 export default function PurchasePage({ activePage, onNavigate }: PageProps) {
   const [searchQuery, setSearchQuery] = useState('')
@@ -27,13 +34,15 @@ export default function PurchasePage({ activePage, onNavigate }: PageProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
+  const { purchaseOrders } = useErp()
+
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200)
     return () => clearTimeout(timer)
   }, [])
 
   const handleButtonClick = () => {
-    console.log('clicked')
+    toast('Action triggered')
   }
 
   const handleNewRecord = () => {
@@ -59,10 +68,7 @@ export default function PurchasePage({ activePage, onNavigate }: PageProps) {
   const selectedVendor = vendors.find((v) => v.id === selectedVendorId)
   const vendorDisplayName = selectedVendor?.name ?? 'Swift Industries Ltd.'
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(TOTAL_VENDORS / VENDORS_PAGE_SIZE),
-  )
+  const totalPages = Math.max(1, Math.ceil(purchaseOrders.length / PAGE_SIZE))
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
@@ -97,11 +103,11 @@ export default function PurchasePage({ activePage, onNavigate }: PageProps) {
                 loading={loading}
               />
               {!loading && (
-                <PurchasePagination
+                <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
-                  totalItems={TOTAL_VENDORS}
-                  pageSize={VENDORS_PAGE_SIZE}
+                  totalItems={purchaseOrders.length}
+                  pageSize={PAGE_SIZE}
                   onPageChange={setCurrentPage}
                 />
               )}

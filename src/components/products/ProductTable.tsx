@@ -94,7 +94,6 @@ export default function ProductTable({
         <tbody className="divide-y divide-slate-100">
           {products.map((product) => {
             const Icon = product.imageIcon
-            const status = statusConfig[product.status]
             const isSelected = selectedIds.has(product.id)
 
             return (

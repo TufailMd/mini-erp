@@ -9,6 +9,8 @@ import MOProgressPanel from '../components/manufacturing/MOProgressPanel'
 import MONotes from '../components/manufacturing/MONotes'
 import LoadingSpinner from '../components/shared/LoadingSpinner'
 import { erpNavItems, erpFooterNavItems } from '../data/salesData'
+import { toast } from 'react-hot-toast'
+import { useErp } from '../context/ErpContext'
 import {
   moFormData,
   productOptions,
@@ -20,19 +22,23 @@ import type { PageProps, MOStatus, MOComponent, MOWorkOrderEntry } from '../type
 type MOTab = 'overview' | 'components' | 'workorders'
 
 export default function MOFormPage({ onNavigate }: PageProps) {
+  const { manufacturingOrders, activeOrderId, confirmManufacturingOrder, completeManufacturingOrder } = useErp()
+  
+  const activeOrder = manufacturingOrders.find(mo => mo.id === activeOrderId) || manufacturingOrders[0]
+
   const [loading, setLoading] = useState(true)
 
   // Form fields
-  const [finishedProduct, setFinishedProduct] = useState(moFormData.finishedProduct)
-  const [billOfMaterials, setBillOfMaterials] = useState(moFormData.billOfMaterials)
-  const [quantityToProduce, setQuantityToProduce] = useState(moFormData.quantityToProduce)
+  const [finishedProduct, setFinishedProduct] = useState(activeOrder ? `Product ${activeOrder.productId}` : moFormData.finishedProduct)
+  const [billOfMaterials, setBillOfMaterials] = useState(activeOrder ? `BOM ${activeOrder.bomId}` : moFormData.billOfMaterials)
+  const [quantityToProduce, setQuantityToProduce] = useState(activeOrder?.quantityToProduce || 1)
   const [responsible, setResponsible] = useState(moFormData.responsible)
-  const [scheduledDate, setScheduledDate] = useState(moFormData.scheduledDate)
+  const [scheduledDate, setScheduledDate] = useState(activeOrder?.createdAt || moFormData.scheduledDate)
   const [deadline, setDeadline] = useState(moFormData.deadline)
   const [sourceDocument, setSourceDocument] = useState(moFormData.sourceDocument)
 
   // Status & tab
-  const [status, setStatus] = useState<MOStatus>(moFormData.status)
+  const [status, setStatus] = useState<MOStatus>((activeOrder?.status as any) || 'Draft')
   const [activeTab, setActiveTab] = useState<MOTab>('overview')
 
   // Arrays
@@ -46,12 +52,21 @@ export default function MOFormPage({ onNavigate }: PageProps) {
   const availability = moFormData.availability
 
   useEffect(() => {
+    if (activeOrder) {
+      setStatus(activeOrder.status as any)
+      setFinishedProduct(`Product ${activeOrder.productId}`)
+      setBillOfMaterials(`BOM ${activeOrder.bomId}`)
+      setQuantityToProduce(activeOrder.quantityToProduce)
+    }
+  }, [activeOrder])
+
+  useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1000)
     return () => clearTimeout(timer)
   }, [])
 
   const handleButtonClick = () => {
-    console.log('clicked')
+    toast('New record created')
   }
 
   // Header handlers
@@ -60,27 +75,25 @@ export default function MOFormPage({ onNavigate }: PageProps) {
   }
 
   const handleConfirm = () => {
-    setStatus('Confirmed')
-    console.log('Status changed to Confirmed')
+    if (activeOrder) confirmManufacturingOrder(activeOrder.id)
   }
 
   const handleCheckAvailability = () => {
-    console.log('Checking availability...')
+    toast('Checking availability...')
   }
 
   const handleProduce = () => {
     setStatus('In Progress')
-    console.log('Status changed to In Progress')
+    toast.success('Status changed to In Progress')
   }
 
   const handleMarkDone = () => {
-    setStatus('Done')
-    console.log('Status changed to Done')
+    if (activeOrder) completeManufacturingOrder(activeOrder.id)
   }
 
   const handleCancel = () => {
     setStatus('Cancelled')
-    console.log('Status changed to Cancelled')
+    toast.error('Status changed to Cancelled')
   }
 
   // Component handlers
@@ -94,7 +107,7 @@ export default function MOFormPage({ onNavigate }: PageProps) {
       status: 'Not Available',
     }
     setComponents([...components, newComponent])
-    console.log('Component added')
+    toast.success('Component added')
   }
 
   const handleDeleteComponent = (id: string) => {
@@ -139,7 +152,7 @@ export default function MOFormPage({ onNavigate }: PageProps) {
 
       <div className="ml-60 flex min-h-screen flex-col">
         <MOFormHeader
-          reference={moFormData.reference}
+          reference={activeOrder ? activeOrder.reference : moFormData.reference}
           status={status}
           onBack={handleBack}
           onCheckAvailability={handleCheckAvailability}

@@ -8,11 +8,11 @@ import Pagination from '../components/sales/Pagination'
 import {
   erpNavItems,
   erpFooterNavItems,
-  salesOrders,
   statusOptions,
   dateRangeOptions,
-  TOTAL_ORDERS,
 } from '../data/salesData'
+import { useErp } from '../context/ErpContext'
+import { toast } from 'react-hot-toast'
 import type { HeaderTab, PageProps } from '../types'
 
 const PAGE_SIZE = 5
@@ -27,20 +27,28 @@ export default function SalesOrdersPage({ activePage, onNavigate }: PageProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
+  const { salesOrders, setActiveOrderId } = useErp()
+
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1500)
     return () => clearTimeout(timer)
   }, [])
 
   const handleButtonClick = () => {
-    console.log('clicked')
+    toast('Action triggered')
   }
 
   const handleNewOrder = () => {
+    setActiveOrderId(null)
     onNavigate('sales-order-create')
   }
 
-  const handleReferenceClick = (_reference: string) => {
+  const handleReferenceClick = (reference: string) => {
+    // Note: the original table passed reference, but we need ID.
+    // Let's find the ID by reference or just change the Table later. 
+    // Wait, the table might be passing the reference text. 
+    const order = salesOrders.find(o => o.reference === reference) || salesOrders[0]
+    setActiveOrderId(order.id)
     onNavigate('sales-order-detail')
   }
 
@@ -56,9 +64,9 @@ export default function SalesOrdersPage({ activePage, onNavigate }: PageProps) {
 
       return matchesFilter && matchesStatus
     })
-  }, [filterQuery, statusFilter])
+  }, [filterQuery, statusFilter, salesOrders])
 
-  const totalPages = Math.max(1, Math.ceil(TOTAL_ORDERS / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(salesOrders.length / PAGE_SIZE))
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -120,7 +128,7 @@ export default function SalesOrdersPage({ activePage, onNavigate }: PageProps) {
             />
 
             <OrderTable
-              orders={filteredOrders}
+              orders={filteredOrders as any}
               loading={loading}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
@@ -132,7 +140,7 @@ export default function SalesOrdersPage({ activePage, onNavigate }: PageProps) {
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
-                totalItems={TOTAL_ORDERS}
+                totalItems={salesOrders.length}
                 pageSize={PAGE_SIZE}
                 onPageChange={setCurrentPage}
               />

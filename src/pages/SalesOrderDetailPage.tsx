@@ -18,11 +18,17 @@ import {
   salesPersonOptions,
 } from '../data/orderDetailData'
 import type { HeaderTab, PageProps, LineItem, OrderDetailStatus } from '../types'
+import { toast } from 'react-hot-toast'
+import { useErp } from '../context/ErpContext'
 
 export default function SalesOrderDetailPage({
-  activePage,
   onNavigate,
 }: PageProps) {
+  const { salesOrders, activeOrderId, confirmSalesOrder, deliverSalesOrder } = useErp()
+  
+  // Find the active order or fallback to first
+  const activeOrder = salesOrders.find(o => o.id === activeOrderId) || salesOrders[0]
+
   // Header state
   const [activeTab, setActiveTab] = useState<HeaderTab>('overview')
   const [searchQuery, setSearchQuery] = useState('')
@@ -30,21 +36,40 @@ export default function SalesOrderDetailPage({
   // Loading state
   const [loading, setLoading] = useState(true)
 
-  // Form state
-  const [customerName, setCustomerName] = useState(
-    salesOrderDetail.customerName
-  )
-  const [billingAddress, setBillingAddress] = useState(
-    salesOrderDetail.billingAddress
-  )
-  const [orderDate, setOrderDate] = useState(salesOrderDetail.orderDate)
+  const [customerName, setCustomerName] = useState(activeOrder.customerName)
+  const [billingAddress, setBillingAddress] = useState(salesOrderDetail.billingAddress)
+  const [orderDate, setOrderDate] = useState(activeOrder.createdAt)
   const [salesPerson, setSalesPerson] = useState(salesOrderDetail.salesPerson)
   const [orderStatus, setOrderStatus] = useState<OrderDetailStatus>(
-    salesOrderDetail.status
+    activeOrder.status as OrderDetailStatus
   )
+  
+  // Convert ErpOrderItems to LineItems
   const [lineItems, setLineItems] = useState<LineItem[]>(
-    salesOrderDetail.lineItems
+    activeOrder.items.map(item => ({
+      id: item.id,
+      product: `Product ${item.productId}`, // We don't have product names joined here easily without more hooks, this is a mock
+      orderedQty: item.quantity,
+      deliveredQty: activeOrder.status === 'Completed' ? item.quantity : 0,
+      costPrice: 0,
+      salesPrice: item.price,
+      total: item.quantity * item.price
+    }))
   )
+
+  // Sync state if activeOrder changes (due to context update)
+  useEffect(() => {
+    setOrderStatus(activeOrder.status as OrderDetailStatus)
+    setLineItems(activeOrder.items.map(item => ({
+      id: item.id,
+      product: `Product ${item.productId}`,
+      orderedQty: item.quantity,
+      deliveredQty: activeOrder.status === 'Completed' ? item.quantity : 0,
+      costPrice: 0,
+      salesPrice: item.price,
+      total: item.quantity * item.price
+    })))
+  }, [activeOrder])
 
   // Computed values
   const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0)
@@ -57,22 +82,21 @@ export default function SalesOrderDetailPage({
   }, [])
 
   const handleButtonClick = () => {
-    console.log('clicked')
+    toast('Action triggered')
   }
 
   const handleCancel = () => {
+    // In a full app, we'd have a cancel action in context
     setOrderStatus('Cancelled')
-    console.log('Order cancelled')
+    toast.error('Order cancelled')
   }
 
   const handleDeliver = () => {
-    setOrderStatus('Delivered')
-    console.log('Order delivered')
+    deliverSalesOrder(activeOrder.id)
   }
 
   const handleConfirm = () => {
-    setOrderStatus('Confirmed')
-    console.log('Order confirmed')
+    confirmSalesOrder(activeOrder.id)
   }
 
   const handleAddRow = () => {
@@ -86,11 +110,11 @@ export default function SalesOrderDetailPage({
       total: 0,
     }
     setLineItems([...lineItems, newItem])
-    console.log('Row added')
+    toast.success('Row added')
   }
 
   const handleProductClick = (productName: string) => {
-    console.log('Product clicked:', productName)
+    toast(`Product clicked: ${productName}`)
   }
 
   return (
@@ -121,7 +145,7 @@ export default function SalesOrderDetailPage({
               {/* Main content area */}
               <div className="min-w-0 flex-1">
                 <OrderDetailHeader
-                  reference={salesOrderDetail.reference}
+                  reference={activeOrder.reference}
                   status={orderStatus}
                   onCancel={handleCancel}
                   onDeliver={handleDeliver}

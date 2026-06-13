@@ -1,4 +1,5 @@
 import { X, Save, ClipboardList, MoreVertical } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 
 interface ProductDetailActionsProps {
   onCancel: () => void
@@ -43,7 +44,7 @@ export default function ProductDetailActions({
         </button>
         <button
           type="button"
-          onClick={() => console.log('More options clicked')}
+          onClick={() => toast('More options clicked')}
           className="rounded-lg border border-slate-300 bg-white p-2 text-slate-500 transition-colors hover:bg-slate-50"
         >
           <MoreVertical className="h-4 w-4" />

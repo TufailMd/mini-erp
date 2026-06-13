@@ -1,7 +1,12 @@
 import StitchConversion from './StitchConversion'
+import { ErpProvider } from './context/ErpContext'
 
 function App() {
-  return <StitchConversion />
+  return (
+    <ErpProvider>
+      <StitchConversion />
+    </ErpProvider>
+  )
 }
 
 export default App

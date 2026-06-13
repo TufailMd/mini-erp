@@ -15,6 +15,7 @@ import {
   salesRepOptions,
 } from '../data/salesOrderCreateData'
 import type { PageProps, CreateLineItem, AssignedUser } from '../types'
+import { toast } from 'react-hot-toast'
 
 export default function SalesOrderCreatePage({
   onNavigate,
@@ -50,16 +51,16 @@ export default function SalesOrderCreatePage({
 
   const handleCancel = () => {
     setStatus('Cancelled')
-    console.log('Order cancelled')
+    toast.error('Order cancelled')
   }
 
   const handleDeliver = () => {
-    console.log('Deliver clicked')
+    toast.success('Deliver clicked')
   }
 
   const handleConfirm = () => {
     setStatus('Confirmed')
-    console.log('Order confirmed')
+    toast.success('Order confirmed')
   }
 
   const handleAssignedUserChange = (name: string) => {
@@ -86,7 +87,7 @@ export default function SalesOrderCreatePage({
       total: 0,
     }
     setLineItems([...lineItems, newItem])
-    console.log('Row added')
+    toast.success('Row added')
   }
 
   const handleDeleteRow = (id: string) => {
@@ -95,11 +96,11 @@ export default function SalesOrderCreatePage({
         .filter((item) => item.id !== id)
         .map((item, idx) => ({ ...item, rowNum: idx + 1 })),
     )
-    console.log('Row deleted:', id)
+    toast.error(`Row deleted: ${id}`)
   }
 
   const handleButtonClick = () => {
-    console.log('clicked')
+    toast('Action triggered')
   }
 
   return (

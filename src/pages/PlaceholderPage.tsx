@@ -2,10 +2,11 @@ import { Construction } from 'lucide-react'
 import ErpSidebar from '../components/sales/ErpSidebar'
 import { erpNavItems, erpFooterNavItems } from '../data/salesData'
 import type { PageProps } from '../types'
+import { toast } from 'react-hot-toast'
 
 export default function PlaceholderPage({ activePage, onNavigate }: PageProps) {
   const handleButtonClick = () => {
-    console.log('clicked')
+    toast('Action triggered in placeholder')
   }
 
   const pageLabel =

@@ -1,4 +1,4 @@
-import { Search, Bell, Clock, Zap, Plus } from 'lucide-react'
+import { Search, Bell, Clock, Plus } from 'lucide-react'
 
 interface ProductsHeaderProps {
   searchQuery: string

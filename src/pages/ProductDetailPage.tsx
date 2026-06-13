@@ -9,6 +9,7 @@ import LoadingSpinner from '../components/shared/LoadingSpinner'
 import { erpNavItems, erpFooterNavItems } from '../data/salesData'
 import { productDetailData } from '../data/productDetailData'
 import type { PageProps, ProcurementConfig } from '../types'
+import { toast } from 'react-hot-toast'
 
 export default function ProductDetailPage({ onNavigate }: PageProps) {
   const [loading, setLoading] = useState(true)
@@ -19,7 +20,7 @@ export default function ProductDetailPage({ onNavigate }: PageProps) {
   )
   const [salesPrice, setSalesPrice] = useState(productDetailData.salesPrice)
   const [costPrice, setCostPrice] = useState(productDetailData.costPrice)
-  const [isDraft, setIsDraft] = useState(productDetailData.isDraft)
+  const [searchQuery, setSearchQuery] = useState('')
   const [procurement, setProcurement] = useState<ProcurementConfig>(
     productDetailData.procurement,
   )
@@ -34,17 +35,16 @@ export default function ProductDetailPage({ onNavigate }: PageProps) {
   }
 
   const handleCancel = () => {
+    toast('Edit Cancelled')
     onNavigate('products')
-    console.log('Cancelled')
   }
 
   const handleSave = () => {
-    setIsDraft(false)
-    console.log('Record saved:', { productName, salesPrice, costPrice })
+    toast.success('Record saved!')
   }
 
   const handleButtonClick = () => {
-    console.log('clicked')
+    toast('Action triggered')
   }
 
   const handleProcurementTypeChange = (type: 'Purchase' | 'Manufacturing') => {

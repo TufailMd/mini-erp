@@ -10,11 +10,16 @@ import LoadingSpinner from '../components/shared/LoadingSpinner'
 import { erpNavItems, erpFooterNavItems } from '../data/salesData'
 import { purchaseOrderData } from '../data/purchaseOrderData'
 import type { HeaderTab, PageProps, PurchaseItem } from '../types'
+import { toast } from 'react-hot-toast'
+import { useErp } from '../context/ErpContext'
 
 export default function PurchaseOrderDetailPage({
-  activePage,
   onNavigate,
 }: PageProps) {
+  const { purchaseOrders, activeOrderId, confirmPurchaseOrder } = useErp()
+  
+  const activeOrder = purchaseOrders.find(o => o.id === activeOrderId) || purchaseOrders[0]
+
   // Header state
   const [activeTab, setActiveTab] = useState<HeaderTab>('overview')
   const [searchQuery, setSearchQuery] = useState('')
@@ -24,10 +29,37 @@ export default function PurchaseOrderDetailPage({
 
   // Order state
   const [orderStatus, setOrderStatus] = useState<'Draft' | 'Confirmed' | 'Cancelled'>(
-    purchaseOrderData.status
+    activeOrder.status as any
   )
-  const [items, setItems] = useState<PurchaseItem[]>(purchaseOrderData.items)
+  const [items, setItems] = useState<PurchaseItem[]>(
+    activeOrder.items.map(item => ({
+      id: item.id,
+      product: `Product ${item.productId}`,
+      sku: `SKU-${item.productId}`,
+      ordered: item.quantity,
+      received: activeOrder.status === 'Completed' ? item.quantity : 0,
+      uom: 'Units',
+      unitPrice: item.price,
+      subtotal: item.quantity * item.price,
+      iconBg: 'bg-indigo-500'
+    }))
+  )
   const [notes, setNotes] = useState('')
+
+  useEffect(() => {
+    setOrderStatus(activeOrder.status as any)
+    setItems(activeOrder.items.map(item => ({
+      id: item.id,
+      product: `Product ${item.productId}`,
+      sku: `SKU-${item.productId}`,
+      ordered: item.quantity,
+      received: activeOrder.status === 'Completed' ? item.quantity : 0,
+      uom: 'Units',
+      unitPrice: item.price,
+      subtotal: item.quantity * item.price,
+      iconBg: 'bg-indigo-500'
+    })))
+  }, [activeOrder])
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1200)
@@ -35,21 +67,20 @@ export default function PurchaseOrderDetailPage({
   }, [])
 
   const handleButtonClick = () => {
-    console.log('clicked')
+    toast('Action triggered')
   }
 
   const handleCancel = () => {
     setOrderStatus('Cancelled')
-    console.log('Order cancelled')
+    toast.error('Order cancelled')
   }
 
   const handleConfirm = () => {
-    setOrderStatus('Confirmed')
-    console.log('Order confirmed')
+    confirmPurchaseOrder(activeOrder.id)
   }
 
   const handlePrint = () => {
-    console.log('Print order')
+    toast('Print order')
   }
 
   const handleAddProduct = () => {
@@ -91,7 +122,7 @@ export default function PurchaseOrderDetailPage({
         ) : (
           <main className="flex-1 p-6">
             <POBreadcrumbActions
-              reference={purchaseOrderData.reference}
+              reference={activeOrder.reference}
               status={orderStatus}
               onBackToPurchase={() => onNavigate('purchase')}
               onCancel={handleCancel}
@@ -103,19 +134,19 @@ export default function PurchaseOrderDetailPage({
               {/* Main content area */}
               <div className="min-w-0 flex-1 space-y-5">
                 <VendorInfoCards
-                  vendorName={purchaseOrderData.vendorName}
-                  vendorCode={purchaseOrderData.vendorCode}
-                  vendorAddress={purchaseOrderData.vendorAddress}
-                  responsiblePerson={purchaseOrderData.responsiblePerson}
-                  responsibleRole={purchaseOrderData.responsibleRole}
+                  vendorName={activeOrder.vendorId} // Mock
+                  vendorCode="VEN-001"
+                  vendorAddress="123 Industrial Way"
+                  responsiblePerson="Mahesh Gupta"
+                  responsibleRole="Purchase Manager"
                 />
 
                 <PurchaseItemsTable
                   items={items}
-                  untaxedAmount={purchaseOrderData.untaxedAmount}
-                  taxRate={purchaseOrderData.taxRate}
-                  taxAmount={purchaseOrderData.taxAmount}
-                  total={purchaseOrderData.total}
+                  untaxedAmount={activeOrder.totalAmount}
+                  taxRate={0}
+                  taxAmount={0}
+                  total={activeOrder.totalAmount}
                   onAddProduct={handleAddProduct}
                 />
 

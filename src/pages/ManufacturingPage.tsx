@@ -11,12 +11,14 @@ import {
 } from '../data/salesData'
 import {
   workCenters,
-  kanbanColumns,
-  allManufacturingOrders,
+  kanbanColumns as defaultColumns,
 } from '../data/manufacturingData'
 import type { HeaderTab, PageProps, ViewMode } from '../types'
+import { toast } from 'react-hot-toast'
+import { useErp } from '../context/ErpContext'
 
 export default function ManufacturingPage({ activePage, onNavigate }: PageProps) {
+  const { manufacturingOrders, setActiveOrderId } = useErp()
   const [activeTab, setActiveTab] = useState<HeaderTab>('overview')
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('board')
@@ -28,29 +30,57 @@ export default function ManufacturingPage({ activePage, onNavigate }: PageProps)
   }, [])
 
   const handleButtonClick = () => {
-    console.log('clicked')
+    toast('Action triggered')
   }
 
   const handleCreateMO = () => {
+    setActiveOrderId(null)
     onNavigate('mo-form')
   }
 
-  const handleCardClick = (_orderId: string) => {
+  const handleCardClick = (orderId: string) => {
+    setActiveOrderId(orderId)
     onNavigate('mo-form')
   }
 
-  const filteredColumns = kanbanColumns.map((column) => ({
-    ...column,
-    orders: column.orders.filter(
-      (order) =>
-        searchQuery === '' ||
-        order.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.bom.toLowerCase().includes(searchQuery.toLowerCase()),
-    ),
+  // Map ErpManufacturingOrder to UI Order
+  const erpOrdersMapped = manufacturingOrders.map(mo => ({
+    id: mo.id,
+    reference: mo.reference,
+    title: `Produce Product ${mo.productId}`,
+    bom: `BOM-${mo.bomId || 'Manual'}`,
+    quantity: mo.quantityToProduce,
+    progress: mo.status === 'Completed' ? 100 : mo.status === 'Partially Processed' ? 50 : 0,
+    status: mo.status,
+    priority: 'Normal' as const,
+    assignee: 'MG'
   }))
 
-  const filteredOrders = allManufacturingOrders.filter(
+  const filteredColumns = defaultColumns.map((column) => {
+    // Determine which status belongs to this column
+    const colStatusMap: Record<string, string[]> = {
+      'Draft': ['Draft'],
+      'Confirmed': ['Confirmed'],
+      'In Progress': ['Partially Processed'],
+      'To Close': [], // Not explicitly mapped in ErpContext yet
+      'Done': ['Completed']
+    }
+    
+    const relevantStatuses = colStatusMap[column.title] || []
+    
+    return {
+    ...column,
+    orders: erpOrdersMapped.filter(
+      (order) =>
+        relevantStatuses.includes(order.status) &&
+        (searchQuery === '' ||
+        order.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.bom.toLowerCase().includes(searchQuery.toLowerCase())),
+    ),
+  }})
+
+  const filteredOrders = erpOrdersMapped.filter(
     (order) =>
       searchQuery === '' ||
       order.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||

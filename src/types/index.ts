@@ -13,14 +13,21 @@ export type PageId =
   | 'mo-form'
   | 'bom'
   | 'bom-detail'
-  | 'inventory'
+  | 'audit-logs'
+  | 'login'
+  | 'signup'
+  | 'forgot-password'
   | 'stock-ledger'
   | 'audit-logs'
+  | 'audit-logs'
+  | 'audit-logs'
   | 'user-management'
+  | 'user-management-detail'
   | 'settings'
   | 'help'
   | 'documentation'
   | 'analytics'
+  | 'inventory'
 
 export interface PageProps {
   activePage: PageId
@@ -522,5 +529,60 @@ export interface AuditLogEntry {
   fieldChanged: string | '-'
   oldValue: string | '-'
   newValue: string | '-'
+}
+
+export * from './auth'
+
+// --- Dashboard Redesign Types ---
+
+export interface StatusCount {
+  label: string
+  count: number
+  isActive?: boolean
+}
+
+export interface ModuleMetrics {
+  title: string
+  all: StatusCount[]
+  my: StatusCount[]
+}
+
+export interface UserProfile {
+  name: string
+  address: string
+  mobile: string
+  email: string
+  position: string
+  avatarUrl?: string
+}
+
+// --- User Management Types ---
+
+export type PermissionValue = 'yes' | 'no' | string
+
+export interface FieldPermission {
+  field: string
+  create: PermissionValue
+  view: PermissionValue
+  edit: PermissionValue
+  delete: PermissionValue
+}
+
+export interface ModulePermissions {
+  sales: FieldPermission[]
+  purchase: FieldPermission[]
+  manufacturing: FieldPermission[]
+  product: FieldPermission[]
+}
+
+export interface SystemUser {
+  id: string
+  name: string
+  address: string
+  mobile: string
+  email: string
+  position: string
+  avatarUrl?: string
+  permissions: ModulePermissions
 }
 

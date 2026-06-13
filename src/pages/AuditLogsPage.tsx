@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import ErpSidebar from '../components/sales/ErpSidebar'
 import AuditLogsHeader from '../components/audit/AuditLogsHeader'
 import AuditLogsFilterBar from '../components/audit/AuditLogsFilterBar'
@@ -6,13 +5,12 @@ import AuditLogsTable from '../components/audit/AuditLogsTable'
 import { erpNavItems, erpFooterNavItems } from '../data/salesData'
 import { auditLogs, auditStats, filterOptions } from '../data/auditLogsData'
 import type { PageProps } from '../types'
+import { useErp } from '../context/ErpContext'
 
 export default function AuditLogsPage({ activePage, onNavigate }: PageProps) {
-  // In a real application, we'd handle filter state and pagination here.
-  // For this wireframe representation, we use the static mock data.
+  const { stockLedger } = useErp()
 
   const handleNewRecordClick = () => {
-    // This could navigate to a default record creation page or just be a placeholder
     onNavigate('dashboard') 
   }
 
@@ -37,9 +35,21 @@ export default function AuditLogsPage({ activePage, onNavigate }: PageProps) {
         </header>
 
         <main className="flex-1 p-6 bg-white m-6 border border-slate-300 rounded shadow-sm">
-          <AuditLogsHeader stats={auditStats} />
+          <AuditLogsHeader stats={{
+            totalLogs: stockLedger.length,
+            criticalAlerts: 0,
+            systemUpdates: 0,
+            userActions: stockLedger.length
+          }} />
           <AuditLogsFilterBar options={filterOptions} />
-          <AuditLogsTable logs={auditLogs} />
+          <AuditLogsTable logs={stockLedger.map(entry => ({
+            id: entry.id,
+            timestamp: entry.timestamp,
+            user: 'System Admin',
+            action: `Stock Movement: ${entry.quantity > 0 ? '+' : ''}${entry.quantity}`,
+            module: 'Inventory',
+            status: 'Success'
+          }))} />
         </main>
       </div>
     </div>

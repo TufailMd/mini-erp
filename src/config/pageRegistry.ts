@@ -13,6 +13,11 @@ import MOFormPage from '../pages/MOFormPage'
 import BOMListPage from '../pages/BOMListPage'
 import BOMDetailPage from '../pages/BOMDetailPage'
 import AuditLogsPage from '../pages/AuditLogsPage'
+import UserManagementListPage from '../pages/UserManagementListPage'
+import UserManagementDetailPage from '../pages/UserManagementDetailPage'
+import LoginPage from '../pages/auth/LoginPage'
+import SignupPage from '../pages/auth/SignupPage'
+import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage'
 import PlaceholderPage from '../pages/PlaceholderPage'
 
 export interface PageConfig {
@@ -35,6 +40,11 @@ export const pageRegistry: PageConfig[] = [
   { id: 'bom', label: 'Bills of Materials', component: BOMListPage },
   { id: 'bom-detail', label: 'BOM Detail Form', component: BOMDetailPage },
   { id: 'audit-logs', label: 'Audit Logs', component: AuditLogsPage },
+  { id: 'user-management', label: 'User Management', component: UserManagementListPage },
+  { id: 'user-management-detail', label: 'User Management Detail', component: UserManagementDetailPage },
+  { id: 'login', label: 'Login', component: LoginPage },
+  { id: 'signup', label: 'Sign Up', component: SignupPage },
+  { id: 'forgot-password', label: 'Forgot Password', component: ForgotPasswordPage },
 ]
 
 const implementedPages = new Map(

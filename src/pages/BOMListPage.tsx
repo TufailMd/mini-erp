@@ -5,10 +5,10 @@ import BOMStatCards from '../components/bom/BOMStatCards'
 import BOMFilterBar from '../components/bom/BOMFilterBar'
 import BOMTable from '../components/bom/BOMTable'
 import BOMPagination from '../components/bom/BOMPagination'
-import LoadingSpinner from '../components/shared/LoadingSpinner'
 import { erpNavItems, erpFooterNavItems } from '../data/salesData'
 import { bomItems, bomStatCards, TOTAL_BOMS, BOM_PAGE_SIZE } from '../data/bomData'
 import type { PageProps } from '../types'
+import { toast } from 'react-hot-toast'
 
 type FilterType = 'All' | 'Active' | 'Draft' | 'Archived'
 
@@ -28,7 +28,7 @@ export default function BOMListPage({ activePage, onNavigate }: PageProps) {
   }
 
   const handleBomClick = (id: string) => {
-    console.log('Navigating to BOM:', id)
+    toast.success(`Loading BOM ${id}`)
     onNavigate('bom-detail')
   }
 
