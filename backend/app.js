@@ -12,8 +12,15 @@ app.use(express.json());
 
 const User = require("./models/User.js");
 const authRoutes = require("./routes/auth.route.js");
+const userRoutes = require("./routes/user.route");
+const auditRoutes = require(
+  "./routes/audit.route.js"
+);
+
+app.use("/audit-logs", auditRoutes);
 
 app.use("/auth", authRoutes);
+app.use("/users", userRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running...');
