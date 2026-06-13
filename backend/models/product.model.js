@@ -10,7 +10,7 @@ const productSchema = new mongoose.Schema(
 
     sku: {
       type: String,
-      required: true,
+      // required: true,
       unique: true,
       uppercase: true,
       trim: true,
@@ -33,6 +33,19 @@ const productSchema = new mongoose.Schema(
       min: 0,
     },
 
+    image: {
+      filename: {
+        type: String,
+        default: "listingimage",
+      },
+      url: {
+        type: String,
+        required: true,
+        default:
+          "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      },
+    },
+
     on_hand_qty: {
       type: Number,
       default: 0,
@@ -48,7 +61,7 @@ const productSchema = new mongoose.Schema(
     low_stock_threshold: {
       type: Number,
       default: 0,
-      min: 5,
+      min: 0,
     },
 
     procure_on_demand: {
@@ -64,11 +77,20 @@ const productSchema = new mongoose.Schema(
       },
     },
 
+    procurement_strategy: {
+      type: String,
+      enum: ["MTS", "MTO"],
+      default: "MTS",
+    },
+
     vendor_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vendor",
       required: function () {
-        return this.procure_on_demand === true && this.procurement_type === "purchase";
+        return (
+          this.procure_on_demand === true &&
+          this.procurement_type === "purchase"
+        );
       },
     },
 
@@ -76,7 +98,10 @@ const productSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Bom",
       required: function () {
-        return this.procure_on_demand === true && this.procurement_type === "manufacturing";
+        return (
+          this.procure_on_demand === true &&
+          this.procurement_type === "manufacturing"
+        );
       },
     },
 
@@ -89,23 +114,29 @@ const productSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 productSchema.virtual("free_qty").get(function () {
-  return this.on_hand_qty - this.reserved_qty;
+  return this.on_hand_qty - (this.reserved_qty || 0);
 });
 
 productSchema.pre("validate", function () {
   if (this.procure_on_demand) {
     if (!this.procurement_type) {
-      throw new Error("procurement_type is required when procure_on_demand is checked");
+      throw new Error(
+        "procurement_type is required when procure_on_demand is checked",
+      );
     }
     if (this.procurement_type === "purchase" && !this.vendor_id) {
-      throw new Error("vendor_id is required when procurement_type is 'purchase'");
+      throw new Error(
+        "vendor_id is required when procurement_type is 'purchase'",
+      );
     }
     if (this.procurement_type === "manufacturing" && !this.bom_id) {
-      throw new Error("bom_id is required when procurement_type is 'manufacturing'");
+      throw new Error(
+        "bom_id is required when procurement_type is 'manufacturing'",
+      );
     }
   } else {
     this.procurement_type = undefined;
