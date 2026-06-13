@@ -13,23 +13,24 @@ const productSchema = new mongoose.Schema(
       required: true,
       unique: true,
       uppercase: true,
-    },
-
-    sales_price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-
-    cost_price: {
-      type: Number,
-      required: true,
-      min: 0,
+      trim: true,
     },
 
     category_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
+    },
+
+    sales_price: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    cost_price: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
 
     on_hand_qty: {
@@ -44,9 +45,10 @@ const productSchema = new mongoose.Schema(
       min: 0,
     },
 
-    procurement_strategy: {
-      type: String,
-      enum: ["make_to_stock", "make_to_order"],
+    low_stock_threshold: {
+      type: Number,
+      default: 0,
+      min: 5,
     },
 
     procure_on_demand: {
@@ -57,27 +59,59 @@ const productSchema = new mongoose.Schema(
     procurement_type: {
       type: String,
       enum: ["purchase", "manufacturing"],
+      required: function () {
+        return this.procure_on_demand === true;
+      },
     },
 
     vendor_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vendor",
+      required: function () {
+        return this.procure_on_demand === true && this.procurement_type === "purchase";
+      },
     },
 
     bom_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Bom",
+      required: function () {
+        return this.procure_on_demand === true && this.procurement_type === "manufacturing";
+      },
+    },
+
+    is_active: {
+      type: Boolean,
+      default: true,
     },
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
-  },
+  }
 );
 
 productSchema.virtual("free_qty").get(function () {
   return this.on_hand_qty - this.reserved_qty;
+});
+
+productSchema.pre("validate", function () {
+  if (this.procure_on_demand) {
+    if (!this.procurement_type) {
+      throw new Error("procurement_type is required when procure_on_demand is checked");
+    }
+    if (this.procurement_type === "purchase" && !this.vendor_id) {
+      throw new Error("vendor_id is required when procurement_type is 'purchase'");
+    }
+    if (this.procurement_type === "manufacturing" && !this.bom_id) {
+      throw new Error("bom_id is required when procurement_type is 'manufacturing'");
+    }
+  } else {
+    this.procurement_type = undefined;
+    this.vendor_id = undefined;
+    this.bom_id = undefined;
+  }
 });
 
 export default mongoose.model("Product", productSchema);
