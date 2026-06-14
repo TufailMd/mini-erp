@@ -1,6 +1,9 @@
 
 import { Search, Calendar } from 'lucide-react';
-import { ledgerFilterOptions } from '@/data/stockLedgerData';
+const ledgerFilterOptions = {
+  movementTypes: ['All', 'Receipt', 'Delivery', 'Transfer'],
+  dateRanges: ['Last 7 Days', 'Last 30 Days', 'This Month', 'Last Month', 'This Year'],
+};
 
 interface StockLedgerFilterBarProps {
   activeTab: string;

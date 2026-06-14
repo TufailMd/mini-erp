@@ -7,6 +7,7 @@ interface POBreadcrumbActionsProps {
   onCancel: () => void
   onDownloadPDF: () => void
   onConfirm: () => void
+  onReceive?: () => void
 }
 
 export default function POBreadcrumbActions({
@@ -16,20 +17,28 @@ export default function POBreadcrumbActions({
   onCancel,
   onDownloadPDF,
   onConfirm,
+  onReceive,
 }: POBreadcrumbActionsProps) {
   const statusColor =
     status === 'Confirmed'
       ? 'text-blue-600'
       : status === 'Cancelled'
         ? 'text-red-600'
-        : 'text-slate-600'
+        : status === 'Completed'
+          ? 'text-green-600'
+          : 'text-slate-600'
 
   const dotColor =
     status === 'Confirmed'
       ? 'bg-blue-500'
       : status === 'Cancelled'
         ? 'bg-red-500'
-        : 'bg-green-500'
+        : status === 'Completed'
+          ? 'bg-green-500'
+          : 'bg-slate-400'
+
+  const canConfirm = status === 'Draft'
+  const canReceive = status === 'Confirmed' || status === 'Partially Processed'
 
   return (
     <div className="mb-4">
@@ -57,13 +66,15 @@ export default function POBreadcrumbActions({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            Cancel Order
-          </button>
+          {status !== 'Cancelled' && status !== 'Completed' && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              Cancel Order
+            </button>
+          )}
           <button
             type="button"
             onClick={onDownloadPDF}
@@ -74,13 +85,24 @@ export default function POBreadcrumbActions({
             </svg>
             Download PDF
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
-          >
-            Confirm Order
-          </button>
+          {canConfirm && (
+            <button
+              type="button"
+              onClick={onConfirm}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+            >
+              Confirm Order
+            </button>
+          )}
+          {canReceive && onReceive && (
+            <button
+              type="button"
+              onClick={onReceive}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+            >
+              Receive Products
+            </button>
+          )}
         </div>
       </div>
     </div>

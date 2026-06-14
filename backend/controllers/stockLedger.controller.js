@@ -36,20 +36,16 @@ export const getStockLedgerByProduct = async (req, res) => {
   }
 };
 
-export const createManualAdjustment = async (req, res) => {
-  const session = await mongoose.startSession();
-  try {
-    session.startTransaction();
-    const { product_id, quantity, notes, created_by } = req.body;
+export const createManualAdjustment = async (req, res) => {  try {    const { product_id, quantity, notes, created_by } = req.body;
 
-    const product = await Product.findById(product_id).session(session);
+    const product = await Product.findById(product_id);
     if (!product) throw new Error("Product not found");
 
     const newBalance = product.on_hand_qty + quantity;
     if (newBalance < 0) throw new Error("Resulting stock cannot be negative");
 
     product.on_hand_qty = newBalance;
-    await product.save({ session });
+    await product.save();
 
     const ledgerEntry = await StockLedger.create(
       [
@@ -63,16 +59,8 @@ export const createManualAdjustment = async (req, res) => {
           notes,
           created_by,
         },
-      ],
-      { session }
-    );
-
-    await session.commitTransaction();
-    res.status(201).json({ success: true, data: { product, ledger: ledgerEntry[0] } });
-  } catch (err) {
-    await session.abortTransaction();
-    res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
-  }
+      ]
+    );    res.status(201).json({ success: true, data: { product, ledger: ledgerEntry[0] } });
+  } catch (err) {    res.status(400).json({ success: false, message: err.message });
+  } finally {  }
 };

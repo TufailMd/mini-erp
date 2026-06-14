@@ -1,11 +1,11 @@
-const User = require("../models/User");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const generateToken = require("../utils/generateToken.js");
+import User from "../models/User.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import generateToken from "../utils/generateToken.js";
 
-const createAuditLog = require("../utils/createAuditLog.js");
+import createAuditLog from "../utils/createAuditLog.js";
 
-const register = async (req, res) => {
+export const register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
@@ -55,7 +55,7 @@ const register = async (req, res) => {
 
 //login function
 
-const login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -105,12 +105,6 @@ const login = async (req, res) => {
   }
 };
 
-const getMe = async (req, res) => {
+export const getMe = async (req, res) => {
   res.status(200).json(req.user);
-};
-
-module.exports = {
-  register,
-  login,
-  getMe,
 };

@@ -2,11 +2,13 @@ import AuditLog from "../models/auditLog.model.js";
 
 export const getAuditLogs = async (req, res) => {
   try {
-    const { module, record_id, page = 1, limit = 50 } = req.query;
+    const { module, record_id, recordId, page = 1, limit = 50 } = req.query;
     const filter = {};
 
     if (module) filter.module = module;
-    if (record_id) filter.record_id = record_id;
+    // Accept both camelCase (frontend) and snake_case for record filtering
+    const recordFilter = recordId || record_id;
+    if (recordFilter) filter.record_id = recordFilter;
 
     const logs = await AuditLog.find(filter)
       .populate("user", "name email")

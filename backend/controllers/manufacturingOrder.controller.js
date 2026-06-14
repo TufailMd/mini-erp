@@ -23,12 +23,12 @@ const TRACKED_FIELDS = [
   "operations",
 ];
 
-const buildLinesFromBom = async (bom, moQuantity, session) => {
+const buildLinesFromBom = async (bom, moQuantity) => {
   const scaleFactor = moQuantity / bom.quantity;
 
   const components = [];
   for (const comp of bom.components) {
-    const product = await Product.findById(comp.component_product_id).session(session);
+    const product = await Product.findById(comp.component_product_id);
     const freeQty = product
       ? (product.on_hand_qty || 0) - (product.reserved_qty || 0)
       : 0;
@@ -55,10 +55,7 @@ const buildLinesFromBom = async (bom, moQuantity, session) => {
 
 
 export const createManufacturingOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
     const {
       finished_product_id,
       quantity,
@@ -73,28 +70,28 @@ export const createManufacturingOrder = async (req, res) => {
     if (!finished_product_id) throw new Error("Finished product is required");
     if (!quantity || quantity <= 0) throw new Error("Quantity must be greater than 0");
 
-    const finishedProduct = await Product.findById(finished_product_id).session(session);
+    const finishedProduct = await Product.findById(finished_product_id);
     if (!finishedProduct) throw new Error("Finished product not found");
 
     let lineComponents = [];
     let lineOperations = [];
 
     if (bom_id) {
-      const bom = await Bom.findById(bom_id).session(session);
+      const bom = await Bom.findById(bom_id);
       if (!bom) throw new Error("BoM not found");
 
       if (bom.finished_product_id.toString() !== finished_product_id.toString()) {
         throw new Error("Selected BoM does not match the finished product");
       }
 
-      const built = await buildLinesFromBom(bom, quantity, session);
+      const built = await buildLinesFromBom(bom, quantity);
       lineComponents = built.components;
       lineOperations = built.operations;
     } else {
 
       if (components && components.length > 0) {
         for (const item of components) {
-          const product = await Product.findById(item.product_id).session(session);
+          const product = await Product.findById(item.product_id);
           if (!product) throw new Error(`Component product not found: ${item.product_id}`);
 
           const freeQty = (product.on_hand_qty || 0) - (product.reserved_qty || 0);
@@ -120,7 +117,7 @@ export const createManufacturingOrder = async (req, res) => {
       }
     }
 
-    const seq = await getNextSequence("manufacturing_order", session);
+    const seq = await getNextSequence("manufacturing_order");
     const mo_number = formatReference("MO", seq);
 
     const mo = await ManufacturingOrder.create(
@@ -138,8 +135,7 @@ export const createManufacturingOrder = async (req, res) => {
           components: lineComponents,
           operations: lineOperations,
         },
-      ],
-      { session }
+      ]
     );
 
     await writeAuditLog({
@@ -147,18 +143,15 @@ export const createManufacturingOrder = async (req, res) => {
       record_id: mo[0]._id,
       record_reference: mo_number,
       action: "Created",
-      user: req.body.user_id || null,
-      session,
+      user: req.body?.user_id || null,
+      
     });
 
-    await session.commitTransaction();
     res.status(201).json({ success: true, data: mo[0] });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
   } finally {
-    session.endSession();
-  }
+    }
 };
 
 
@@ -222,11 +215,8 @@ export const getManufacturingOrderById = async (req, res) => {
 
 
 export const updateManufacturingOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await ManufacturingOrder.findById(req.params.id).session(session);
+    const order = await ManufacturingOrder.findById(req.params.id);
     if (!order) throw new Error("Manufacturing Order not found");
 
     if (order.status !== "Draft") {
@@ -249,9 +239,7 @@ export const updateManufacturingOrder = async (req, res) => {
     let finishedProductId = order.finished_product_id;
 
     if (finished_product_id !== undefined) {
-      const finishedProduct = await Product.findById(finished_product_id).session(
-        session
-      );
+      const finishedProduct = await Product.findById(finished_product_id);
       if (!finishedProduct) throw new Error("Finished product not found");
       order.finished_product_id = finishedProduct._id;
       order.finished_product_name = finishedProduct.name;
@@ -274,7 +262,7 @@ export const updateManufacturingOrder = async (req, res) => {
 
     if (bom_id !== undefined) {
       if (bom_id) {
-        const bom = await Bom.findById(bom_id).session(session);
+        const bom = await Bom.findById(bom_id);
         if (!bom) throw new Error("BoM not found");
 
         if (bom.finished_product_id.toString() !== finishedProductId.toString()) {
@@ -287,8 +275,8 @@ export const updateManufacturingOrder = async (req, res) => {
     }
 
     if (order.bom_id && (bomChanged || quantityChanged)) {
-      const bom = await Bom.findById(order.bom_id).session(session);
-      const built = await buildLinesFromBom(bom, newQuantity, session);
+      const bom = await Bom.findById(order.bom_id);
+      const built = await buildLinesFromBom(bom, newQuantity);
       order.components = built.components;
       order.operations = built.operations;
     } else {
@@ -296,7 +284,7 @@ export const updateManufacturingOrder = async (req, res) => {
       if (components !== undefined) {
         const lineComponents = [];
         for (const item of components) {
-          const product = await Product.findById(item.product_id).session(session);
+          const product = await Product.findById(item.product_id);
           if (!product) {
             throw new Error(`Component product not found: ${item.product_id}`);
           }
@@ -324,7 +312,7 @@ export const updateManufacturingOrder = async (req, res) => {
       }
     }
 
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Manufacturing",
@@ -333,26 +321,20 @@ export const updateManufacturingOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: TRACKED_FIELDS,
-      user: req.body.user_id || null,
-      session,
+      user: req.body?.user_id || null,
+      
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
   } finally {
-    session.endSession();
-  }
+    }
 };
 
 export const confirmManufacturingOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await ManufacturingOrder.findById(req.params.id).session(session);
+    const order = await ManufacturingOrder.findById(req.params.id);
     if (!order) throw new Error("Manufacturing Order not found");
 
     if (order.status !== "Draft") {
@@ -367,11 +349,11 @@ export const confirmManufacturingOrder = async (req, res) => {
 
 
     for (const line of order.components) {
-      await updateReservedQty(line.product_id, line.to_consume_qty, session);
+      await updateReservedQty(line.product_id, line.to_consume_qty);
     }
 
     order.status = "Confirmed";
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Manufacturing",
@@ -380,27 +362,21 @@ export const confirmManufacturingOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["status"],
-      user: req.body.user_id || null,
-      session,
+      user: req.body?.user_id || null,
+      
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
   } finally {
-    session.endSession();
-  }
+    }
 };
 
 
 export const startManufacturingOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await ManufacturingOrder.findById(req.params.id).session(session);
+    const order = await ManufacturingOrder.findById(req.params.id);
     if (!order) throw new Error("Manufacturing Order not found");
 
     if (order.status !== "Confirmed") {
@@ -410,7 +386,7 @@ export const startManufacturingOrder = async (req, res) => {
     const before = order.toObject();
 
     order.status = "In Progress";
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Manufacturing",
@@ -419,27 +395,21 @@ export const startManufacturingOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["status"],
-      user: req.body.user_id || null,
-      session,
+      user: req.body?.user_id || null,
+      
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
   } finally {
-    session.endSession();
-  }
+    }
 };
 
 
 export const updateManufacturingProgress = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await ManufacturingOrder.findById(req.params.id).session(session);
+    const order = await ManufacturingOrder.findById(req.params.id);
     if (!order) throw new Error("Manufacturing Order not found");
 
     if (!["Confirmed", "In Progress"].includes(order.status)) {
@@ -475,7 +445,7 @@ export const updateManufacturingProgress = async (req, res) => {
       }
     }
 
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Manufacturing",
@@ -484,26 +454,20 @@ export const updateManufacturingProgress = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["components", "operations"],
-      user: req.body.user_id || null,
-      session,
+      user: req.body?.user_id || null,
+      
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
   } finally {
-    session.endSession();
-  }
+    }
 };
 
 export const produceManufacturingOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await ManufacturingOrder.findById(req.params.id).session(session);
+    const order = await ManufacturingOrder.findById(req.params.id);
     if (!order) throw new Error("Manufacturing Order not found");
 
     if (!["Confirmed", "In Progress"].includes(order.status)) {
@@ -520,7 +484,7 @@ export const produceManufacturingOrder = async (req, res) => {
           : line.to_consume_qty;
 
       // Release the reservation
-      await updateReservedQty(line.product_id, -line.to_consume_qty, session);
+      await updateReservedQty(line.product_id, -line.to_consume_qty);
 
       // Deduct from physical stock
       await recordStockMovement({
@@ -530,8 +494,8 @@ export const produceManufacturingOrder = async (req, res) => {
         reference_type: "ManufacturingOrder",
         reference_id: order._id,
         notes: `Consumed ${consumeQty} of ${line.product_name} for ${order.mo_number}`,
-        created_by: req.body.user_id || null,
-        session,
+        created_by: req.body?.user_id || null,
+        
       });
 
       line.consumed_qty = consumeQty;
@@ -545,12 +509,12 @@ export const produceManufacturingOrder = async (req, res) => {
       reference_type: "ManufacturingOrder",
       reference_id: order._id,
       notes: `Produced ${order.quantity} of ${order.finished_product_name} for ${order.mo_number}`,
-      created_by: req.body.user_id || null,
-      session,
+      created_by: req.body?.user_id || null,
+      
     });
 
     order.status = "Done";
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Manufacturing",
@@ -559,27 +523,21 @@ export const produceManufacturingOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["status", "components"],
-      user: req.body.user_id || null,
-      session,
+      user: req.body?.user_id || null,
+      
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
   } finally {
-    session.endSession();
-  }
+    }
 };
 
 
 export const cancelManufacturingOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await ManufacturingOrder.findById(req.params.id).session(session);
+    const order = await ManufacturingOrder.findById(req.params.id);
     if (!order) throw new Error("Manufacturing Order not found");
 
     if (["Done", "Cancelled"].includes(order.status)) {
@@ -591,12 +549,12 @@ export const cancelManufacturingOrder = async (req, res) => {
 
     if (["Confirmed", "In Progress"].includes(order.status)) {
       for (const line of order.components) {
-        await updateReservedQty(line.product_id, -line.to_consume_qty, session);
+        await updateReservedQty(line.product_id, -line.to_consume_qty);
       }
     }
 
     order.status = "Cancelled";
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Manufacturing",
@@ -605,18 +563,15 @@ export const cancelManufacturingOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["status"],
-      user: req.body.user_id || null,
-      session,
+      user: req.body?.user_id || null,
+      
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
   } finally {
-    session.endSession();
-  }
+    }
 };
 
 
@@ -642,7 +597,7 @@ export const deleteManufacturingOrder = async (req, res) => {
       record_id: order._id,
       record_reference: order.mo_number,
       action: "Deleted",
-      user: req.body.user_id || null,
+      user: req.body?.user_id || null,
     });
 
     res.json({ success: true, message: "Manufacturing Order deleted" });

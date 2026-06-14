@@ -72,5 +72,6 @@ export interface StockLedgerEntry {
   productId: string
   movementType: 'In' | 'Out'
   quantity: number
+  balance: number
   reference: string // e.g., 'SO-001' or 'MO-002'
 }

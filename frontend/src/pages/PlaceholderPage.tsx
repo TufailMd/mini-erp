@@ -1,6 +1,6 @@
 import { Construction } from 'lucide-react'
-import ErpSidebar from '@/modules/sales/components/ErpSidebar'
-import { erpNavItems, erpFooterNavItems } from '@/data/salesData'
+import ErpSidebar from '@/components/layout/ErpSidebar'
+import { erpNavItems, erpFooterNavItems } from '@/constants/navigation'
 import type { PageProps } from '@/types'
 import { toast } from 'react-hot-toast'
 

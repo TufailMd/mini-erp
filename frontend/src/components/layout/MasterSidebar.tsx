@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { erpNavItems } from '@/data/salesData'
+import { erpNavItems, erpFooterNavItems } from '@/constants/navigation'
 import type { PageId } from '@/types'
 
 interface MasterSidebarProps {

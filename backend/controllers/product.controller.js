@@ -1,8 +1,22 @@
 import Product from "../models/product.model.js";
+import { recordStockMovement } from "../utils/stockHelper.js";
 
 export const createProduct = async (req, res) => {
   try {
     const product = await Product.create(req.body);
+
+    if (req.body.on_hand_qty && req.body.on_hand_qty > 0) {
+      await recordStockMovement({
+        product_id: product._id,
+        transaction_type: "manual_adjustment",
+        quantity: req.body.on_hand_qty,
+        reference_type: "Manual",
+        reference_id: product._id,
+        notes: "Initial stock upon product creation",
+        created_by: req.user?._id || null,
+      });
+    }
+
     res.status(201).json({ success: true, data: product });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });

@@ -1,7 +1,41 @@
 import React from 'react';
-import { inventoryStatCards } from '@/data/inventoryData';
+import { Package, AlertCircle, RefreshCw, Archive } from 'lucide-react';
+import { useErp } from '@/context/ErpContext';
 
 const InventoryStatCards: React.FC = () => {
+  const { products, salesOrders } = useErp()
+
+  const inventoryStatCards = [
+    {
+      title: 'Total Products',
+      value: products.length.toString(),
+      icon: Package,
+      change: '+4.75%',
+      changeType: 'positive',
+    },
+    {
+      title: 'Low Stock Items',
+      value: products.filter(p => p.onHandQty < 10).length.toString(),
+      icon: AlertCircle,
+      change: '12 items need reorder',
+      changeType: 'negative',
+    },
+    {
+      title: 'Pending Receipts',
+      value: '0', // TODO: from purchaseOrders
+      icon: RefreshCw,
+      change: '-1.39%',
+      changeType: 'negative',
+    },
+    {
+      title: 'Items to Ship',
+      value: '0', // TODO: from salesOrders
+      icon: Archive,
+      change: '+10.18%',
+      changeType: 'positive',
+    },
+  ];
+
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
       {inventoryStatCards.map((card, index) => {

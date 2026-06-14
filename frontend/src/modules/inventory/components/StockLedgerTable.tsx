@@ -1,6 +1,7 @@
-
+import { useState } from 'react';
 import { useErp } from '@/context/ErpContext';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import Pagination from '@/components/common/Pagination';
 
 interface StockLedgerTableProps {
   filterTab: string;
@@ -27,26 +28,13 @@ export const StockLedgerTable = ({ filterTab, searchQuery }: StockLedgerTablePro
     });
   }
 
-  // Calculate balance on the fly per product
-  const sortedAsc = [...filtered].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  
-  const balances: Record<string, number> = {};
-  const entriesWithBalance = sortedAsc.map(entry => {
-    if (!balances[entry.productId]) balances[entry.productId] = 0;
-    
-    if (entry.movementType === 'In') {
-      balances[entry.productId] += entry.quantity;
-    } else if (entry.movementType === 'Out') {
-      balances[entry.productId] -= entry.quantity;
-    }
-    
-    return {
-      ...entry,
-      balance: balances[entry.productId]
-    };
-  });
+  // Sort descending by date (newest first)
+  const displayEntries = [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const displayEntries = entriesWithBalance.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(displayEntries.length / PAGE_SIZE));
+  const paginatedEntries = displayEntries.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   if (displayEntries.length === 0) {
     return (
@@ -72,7 +60,7 @@ export const StockLedgerTable = ({ filterTab, searchQuery }: StockLedgerTablePro
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {displayEntries.map((entry) => {
+            {paginatedEntries.map((entry) => {
               const product = products.find(p => p.id === entry.productId);
               const productName = product ? product.name : `Product ${entry.productId}`;
               const isIn = entry.movementType === 'In';
@@ -119,6 +107,13 @@ export const StockLedgerTable = ({ filterTab, searchQuery }: StockLedgerTablePro
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={displayEntries.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 }

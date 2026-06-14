@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import ErpSidebar from '@/modules/sales/components/ErpSidebar'
+import ErpSidebar from '@/components/layout/ErpSidebar'
 import PODetailHeader from '@/modules/purchase/components/PODetailHeader'
 import POBreadcrumbActions from '@/modules/purchase/components/POBreadcrumbActions'
 import VendorInfoCards from '@/modules/purchase/components/VendorInfoCards'
@@ -7,17 +7,18 @@ import PurchaseItemsTable from '@/modules/purchase/components/PurchaseItemsTable
 import OrderHistory from '@/modules/purchase/components/OrderHistory'
 import AdditionalNotes from '@/modules/purchase/components/AdditionalNotes'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
-import { erpNavItems, erpFooterNavItems } from '@/data/salesData'
-import { purchaseOrderData } from '@/data/purchaseOrderData'
+import { erpNavItems, erpFooterNavItems } from '@/constants/navigation'
+
 import type { HeaderTab, PageProps, PurchaseItem } from '@/types'
 import { toast } from 'react-hot-toast'
 import { useErp } from '@/context/ErpContext'
 import { generateInvoicePDF, type InvoiceData } from '@/utils/pdfGenerator'
+import apiClient from '@/api/client'
 
 export default function PurchaseOrderDetailPage({
   onNavigate,
 }: PageProps) {
-  const { purchaseOrders, activeOrderId, confirmPurchaseOrder } = useErp()
+  const { purchaseOrders, activeOrderId, confirmPurchaseOrder, receivePurchaseOrder, products } = useErp()
   
   const activeOrder = purchaseOrders.find(o => o.id === activeOrderId) || purchaseOrders[0]
 
@@ -29,43 +30,47 @@ export default function PurchaseOrderDetailPage({
   const [loading, setLoading] = useState(true)
 
   // Order state
-  const [orderStatus, setOrderStatus] = useState<'Draft' | 'Confirmed' | 'Cancelled'>(
-    (activeOrder?.status as any) || 'Draft'
+  const [orderStatus, setOrderStatus] = useState<string>(
+    activeOrder?.status || 'Draft'
   )
-  const [items, setItems] = useState<PurchaseItem[]>(
-    activeOrder?.items?.map(item => ({
-      id: item.id,
-      product: `Product ${item.productId}`,
-      sku: `SKU-${item.productId}`,
-      ordered: item.quantity,
-      received: activeOrder?.status === 'Completed' ? item.quantity : 0,
-      uom: 'Units',
-      unitPrice: item.price,
-      subtotal: item.quantity * item.price,
-      iconBg: 'bg-indigo-500'
-    })) || []
-  )
+  const [items, setItems] = useState<PurchaseItem[]>([])
   const [notes, setNotes] = useState('')
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
 
   useEffect(() => {
     if (activeOrder) {
-      setOrderStatus(activeOrder.status as any)
-      setItems(activeOrder.items?.map(item => ({
-        id: item.id,
-        product: `Product ${item.productId}`,
-        sku: `SKU-${item.productId}`,
-        ordered: item.quantity,
-        received: activeOrder.status === 'Completed' ? item.quantity : 0,
-        uom: 'Units',
-        unitPrice: item.price,
-        subtotal: item.quantity * item.price,
-        iconBg: 'bg-indigo-500'
-      })) || [])
+      setOrderStatus(activeOrder.status)
+      const mapped = activeOrder.items?.map((item: any) => {
+        const product = products.find(p => p.id === item.productId)
+        return {
+          id: item.id,
+          product: product?.name || `Product ${item.productId}`,
+          sku: product?.code || `SKU-${item.productId}`,
+          ordered: item.quantity,
+          received: item.receivedQuantity || 0,
+          uom: 'Units',
+          unitPrice: item.price,
+          subtotal: item.quantity * item.price,
+          iconBg: 'bg-indigo-500'
+        }
+      }) || []
+      setItems(mapped)
+
+      // Fetch audit logs for this record from backend
+      const fetchLogs = async () => {
+        try {
+          const res = await apiClient.get(`/audit-logs?recordId=${activeOrder.id}`)
+          setAuditLogs((res as any) || [])
+        } catch (e) {
+          // ignore
+        }
+      }
+      fetchLogs()
     }
-  }, [activeOrder])
+  }, [activeOrder, products])
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1200)
+    const timer = setTimeout(() => setLoading(false), 800)
     return () => clearTimeout(timer)
   }, [])
 
@@ -73,23 +78,33 @@ export default function PurchaseOrderDetailPage({
     toast('Action triggered')
   }
 
-  const handleCancel = () => {
-    setOrderStatus('Cancelled')
-    toast.error('Order cancelled')
+  const handleCancel = async () => {
+    try {
+      await apiClient.post(`/purchase/${activeOrder.id}/cancel`)
+      setOrderStatus('Cancelled')
+      toast.error('Order cancelled')
+      onNavigate('purchase')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to cancel')
+    }
   }
 
-  const handleConfirm = () => {
-    confirmPurchaseOrder(activeOrder.id)
+  const handleConfirm = async () => {
+    await confirmPurchaseOrder(activeOrder.id)
+  }
+
+  const handleReceive = async () => {
+    await receivePurchaseOrder(activeOrder.id)
   }
 
   const handleDownloadPDF = () => {
     const invoiceData: InvoiceData = {
       reference: activeOrder?.reference || 'Unknown',
       status: activeOrder?.status || 'Draft',
-      customerName: activeOrder?.vendorId || 'Vendor',
-      billingAddress: 'Vendor Address',
+      customerName: (activeOrder as any)?.vendorName || 'Vendor',
+      billingAddress: (activeOrder as any)?.vendorAddress || 'Vendor Address',
       orderDate: activeOrder?.createdAt ? new Date(activeOrder.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
-      salesPerson: 'Procurement Dept',
+      salesPerson: (activeOrder as any)?.responsiblePerson || 'Procurement Dept',
       lineItems: items.map(li => ({
         product: li.product,
         quantity: li.ordered,
@@ -106,19 +121,7 @@ export default function PurchaseOrderDetailPage({
   }
 
   const handleAddProduct = () => {
-    const newItem: PurchaseItem = {
-      id: String(items.length + 1),
-      product: 'New Product',
-      sku: 'SKU-000',
-      ordered: 0,
-      received: 0,
-      uom: 'Units',
-      unitPrice: 0,
-      subtotal: 0,
-      iconBg: 'bg-slate-500',
-    }
-    setItems([...items, newItem])
-    console.log('Product added')
+    toast.error('Products cannot be added to an active purchase order directly from details.')
   }
 
   return (
@@ -143,24 +146,25 @@ export default function PurchaseOrderDetailPage({
           <LoadingSpinner className="mt-32" />
         ) : (
           <main className="flex-1 p-6">
-                <POBreadcrumbActions 
-                  reference={activeOrder?.reference || 'Unknown'} 
-                  status={orderStatus}
-                  onDownloadPDF={handleDownloadPDF}
-                  onBackToPurchase={() => onNavigate('purchase')}
-                  onCancel={handleCancel}
-                  onConfirm={handleConfirm}
-                />
-                
-                <div className="flex gap-6">
-                  {/* Main content area */}
-                  <div className="min-w-0 flex-1 space-y-5">
-                    <VendorInfoCards
-                  vendorName={activeOrder?.vendorId || 'Mock Vendor'}
-                  vendorCode="VEN-001"
-                  vendorAddress="123 Industrial Way"
-                  responsiblePerson="Mahesh Gupta"
-                  responsibleRole="Purchase Manager"
+            <POBreadcrumbActions 
+              reference={activeOrder?.reference || 'Unknown'} 
+              status={orderStatus}
+              onDownloadPDF={handleDownloadPDF}
+              onBackToPurchase={() => onNavigate('purchase')}
+              onCancel={handleCancel}
+              onConfirm={handleConfirm}
+              onReceive={handleReceive}
+            />
+            
+            <div className="flex gap-6">
+              {/* Main content area */}
+              <div className="min-w-0 flex-1 space-y-5">
+                <VendorInfoCards
+                  vendorName={(activeOrder as any)?.vendorName || 'Vendor'}
+                  vendorCode="VEN-DB"
+                  vendorAddress={(activeOrder as any)?.vendorAddress || 'Vendor Address'}
+                  responsiblePerson={(activeOrder as any)?.responsiblePerson || 'Purchase Rep'}
+                  responsibleRole="Purchase Representative"
                 />
                 
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -179,7 +183,6 @@ export default function PurchaseOrderDetailPage({
                     total={activeOrder?.totalAmount || 0}
                     onAddProduct={handleAddProduct}
                   />
-                  
                 </div>
 
                 <AdditionalNotes
@@ -191,7 +194,13 @@ export default function PurchaseOrderDetailPage({
               {/* Right sidebar */}
               <div className="w-72 shrink-0">
                 <OrderHistory 
-                  history={purchaseOrderData.history} 
+                  history={auditLogs.map((log: any, idx: number) => ({
+                    id: log._id || String(idx),
+                    type: log.action === 'Created' ? 'created' : 'updated',
+                    label: log.action,
+                    description: log.fieldChanged ? `Changed ${log.fieldChanged} from "${log.oldValue}" to "${log.newValue}"` : `Order was ${log.action.toLowerCase()}`,
+                    date: new Date(log.createdAt).toLocaleDateString()
+                  }))} 
                   onViewLogs={() => onNavigate('audit-logs')}
                 />
               </div>

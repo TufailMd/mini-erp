@@ -6,7 +6,8 @@ import {
 
 const router = express.Router();
 
+router.get("/", getInventoryDashboard);          // Fix: frontend calls GET /inventory
 router.get("/dashboard", getInventoryDashboard);
 router.get("/low-stock", getLowStockAlerts);
 
-export default router;
+export default router;

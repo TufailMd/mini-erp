@@ -1,4 +1,6 @@
 import { Bell, Clock, Search } from 'lucide-react'
+import { useAuthStore } from '@/store/useAuthStore'
+import { useAuth } from '@/context/AuthContext'
 
 interface BOMListHeaderProps {
   searchQuery: string
@@ -13,6 +15,10 @@ export default function BOMListHeader({
   onCreateBOM,
   onButtonClick,
 }: BOMListHeaderProps) {
+  const { user } = useAuth()
+  const displayUserName = user?.email?.split('@')[0] || 'Admin User'
+  const displayInitials = displayUserName.slice(0, 2).toUpperCase()
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
       <div>
@@ -54,11 +60,11 @@ export default function BOMListHeader({
             <Clock className="h-5 w-5" />
           </button>
           <button
-            onClick={onButtonClick}
+            onClick={() => useAuthStore.getState().setProfileOpen(true)}
             className="h-8 w-8 overflow-hidden rounded-full border border-slate-200"
           >
             <div className="flex h-full w-full items-center justify-center bg-indigo-100 text-sm font-medium text-indigo-700">
-              MG
+              {displayInitials}
             </div>
           </button>
         </div>

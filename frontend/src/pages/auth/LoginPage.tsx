@@ -91,6 +91,11 @@ export default function LoginPage({ onNavigate }: PageProps) {
           <button onClick={toggleRole} className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline">
             {role === 'admin' ? 'Login as User' : 'Login as System Administrator'}
           </button>
+          <div className="mt-4 rounded bg-indigo-50 p-3 text-xs text-indigo-800 text-center border border-indigo-100">
+            <strong>Demo Admin Credentials:</strong><br/>
+            Email: admin@nexuserp.com<br/>
+            Password: Admin@1234
+          </div>
         </div>
       </div>
     </div>

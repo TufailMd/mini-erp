@@ -1,36 +1,23 @@
-const express = require("express");
+import express from "express";
+import protect from "../middleware/auth.middleware.js";
+import authorize from "../middleware/role.middleware.js";
+import {
+  getUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser,
+} from "../controllers/user.controllers.js";
+
 const router = express.Router();
 
-const protect = require("../middleware/auth.middleware");
-const authorize = require("../middleware/role.middleware");
+// Read — any authenticated user can fetch users (needed by detail pages)
+router.get("/", protect, getUsers);
+router.get("/:id", protect, getUserById);
 
-const {
-  getUsers,
-  deleteUser,
-  updateUser,
-} = require("../controllers/user.controllers.js");
+// Write — ADMIN only
+router.post("/", protect, authorize("ADMIN"), createUser);
+router.put("/:id", protect, authorize("ADMIN"), updateUser);
+router.delete("/:id", protect, authorize("ADMIN"), deleteUser);
 
-// Get all users
-router.get(
-  "/",
-  protect,
-  authorize("ADMIN"),
-  getUsers
-);
-
-router.put(
-  "/:id",
-  protect,
-  authorize("ADMIN"),
-  updateUser
-);
-
-// Delete user
-router.delete(
-  "/:id",
-  protect,
-  authorize("ADMIN"),
-  deleteUser
-);
-
-module.exports = router;
+export default router;

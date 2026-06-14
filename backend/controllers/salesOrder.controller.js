@@ -1,7 +1,6 @@
-import mongoose from "mongoose";
 import SalesOrder from "../models/salesOrder.model.js";
 import Product from "../models/product.model.js";
-import Counter, { getNextSequence, formatReference } from "../models/counter.model.js";
+import { getNextSequence, formatReference } from "../models/counter.model.js";
 import {
   recordStockMovement,
   updateReservedQty,
@@ -18,18 +17,16 @@ const TRACKED_FIELDS = [
 ];
 
 export const createSalesOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
     const { customer, customer_address, sales_person, products } = req.body;
 
     if (!products || products.length === 0) {
       throw new Error("At least one product is required");
     }
+
     const lineItems = [];
     for (const item of products) {
-      const product = await Product.findById(item.product_id).session(session);
+      const product = await Product.findById(item.product_id);
       if (!product) throw new Error(`Product not found: ${item.product_id}`);
 
       const freeQty = (product.on_hand_qty || 0) - (product.reserved_qty || 0);
@@ -48,39 +45,29 @@ export const createSalesOrder = async (req, res) => {
       });
     }
 
-    const seq = await getNextSequence("sales_order", session);
+    const seq = await getNextSequence("sales_order");
     const so_number = formatReference("SO", seq);
 
-    const salesOrder = await SalesOrder.create(
-      [
-        {
-          so_number,
-          customer,
-          customer_address,
-          sales_person,
-          status: "Draft",
-          products: lineItems,
-        },
-      ],
-      { session }
-    );
+    const salesOrder = await SalesOrder.create({
+      so_number,
+      customer,
+      customer_address,
+      sales_person,
+      status: "Draft",
+      products: lineItems,
+    });
 
     await writeAuditLog({
       module: "Sales",
-      record_id: salesOrder[0]._id,
+      record_id: salesOrder._id,
       record_reference: so_number,
       action: "Created",
-      user: req.body.user_id || null,
-      session,
+      user: req.user?._id || null,
     });
 
-    await session.commitTransaction();
-    res.status(201).json({ success: true, data: salesOrder[0] });
+    res.status(201).json({ success: true, data: salesOrder });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
@@ -112,7 +99,6 @@ export const getSalesOrders = async (req, res) => {
   }
 };
 
-
 export const getSalesOrderById = async (req, res) => {
   try {
     const order = await SalesOrder.findById(req.params.id).populate(
@@ -140,21 +126,15 @@ export const getSalesOrderById = async (req, res) => {
 };
 
 export const updateSalesOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await SalesOrder.findById(req.params.id).session(session);
-    if (!order) {
-      throw new Error("Sales Order not found");
-    }
+    const order = await SalesOrder.findById(req.params.id);
+    if (!order) throw new Error("Sales Order not found");
 
     if (order.status !== "Draft") {
       throw new Error("Only Draft orders can be edited");
     }
 
     const before = order.toObject();
-
     const { customer, customer_address, sales_person, products } = req.body;
 
     if (customer !== undefined) order.customer = customer;
@@ -164,7 +144,7 @@ export const updateSalesOrder = async (req, res) => {
     if (products !== undefined) {
       const lineItems = [];
       for (const item of products) {
-        const product = await Product.findById(item.product_id).session(session);
+        const product = await Product.findById(item.product_id);
         if (!product) throw new Error(`Product not found: ${item.product_id}`);
 
         const freeQty = (product.on_hand_qty || 0) - (product.reserved_qty || 0);
@@ -185,7 +165,7 @@ export const updateSalesOrder = async (req, res) => {
       order.products = lineItems;
     }
 
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Sales",
@@ -194,26 +174,18 @@ export const updateSalesOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: TRACKED_FIELDS,
-      user: req.body.user_id || null,
-      session,
+      user: req.user?._id || null,
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
 export const confirmSalesOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await SalesOrder.findById(req.params.id).session(session);
+    const order = await SalesOrder.findById(req.params.id);
     if (!order) throw new Error("Sales Order not found");
 
     if (order.status !== "Draft") {
@@ -224,7 +196,7 @@ export const confirmSalesOrder = async (req, res) => {
     const shortages = [];
 
     for (const line of order.products) {
-      const product = await Product.findById(line.product_id).session(session);
+      const product = await Product.findById(line.product_id);
       if (!product) throw new Error(`Product not found: ${line.product_id}`);
 
       const freeQty = (product.on_hand_qty || 0) - (product.reserved_qty || 0);
@@ -239,11 +211,11 @@ export const confirmSalesOrder = async (req, res) => {
         });
       }
 
-      await updateReservedQty(product._id, line.ordered_quantity, session);
+      await updateReservedQty(product._id, line.ordered_quantity);
     }
 
     order.status = "Confirmed";
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Sales",
@@ -252,26 +224,18 @@ export const confirmSalesOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["status"],
-      user: req.body.user_id || null,
-      session,
+      user: req.user?._id || null,
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order, shortages });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
 export const deliverSalesOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await SalesOrder.findById(req.params.id).session(session);
+    const order = await SalesOrder.findById(req.params.id);
     if (!order) throw new Error("Sales Order not found");
 
     if (!["Confirmed", "Partially Delivered"].includes(order.status)) {
@@ -294,14 +258,10 @@ export const deliverSalesOrder = async (req, res) => {
       const newDelivered = Number(update.delivered_quantity);
 
       if (newDelivered < line.delivered_quantity) {
-        throw new Error(
-          `Delivered quantity cannot decrease for ${line.product_name}`
-        );
+        throw new Error(`Delivered quantity cannot decrease for ${line.product_name}`);
       }
       if (newDelivered > line.ordered_quantity) {
-        throw new Error(
-          `Delivered quantity cannot exceed ordered quantity for ${line.product_name}`
-        );
+        throw new Error(`Delivered quantity cannot exceed ordered quantity for ${line.product_name}`);
       }
 
       const delta = newDelivered - line.delivered_quantity;
@@ -314,11 +274,10 @@ export const deliverSalesOrder = async (req, res) => {
           reference_type: "SalesOrder",
           reference_id: order._id,
           notes: `Delivered ${delta} of ${line.product_name} for ${order.so_number}`,
-          created_by: req.body.user_id || null,
-          session,
+          created_by: req.user?._id || null,
         });
 
-        await updateReservedQty(line.product_id, -delta, session);
+        await updateReservedQty(line.product_id, -delta);
       }
 
       line.delivered_quantity = newDelivered;
@@ -329,7 +288,7 @@ export const deliverSalesOrder = async (req, res) => {
     );
 
     order.status = allFullyDelivered ? "Fully Delivered" : "Partially Delivered";
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Sales",
@@ -338,26 +297,18 @@ export const deliverSalesOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["status", "products"],
-      user: req.body.user_id || null,
-      session,
+      user: req.user?._id || null,
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
 export const cancelSalesOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await SalesOrder.findById(req.params.id).session(session);
+    const order = await SalesOrder.findById(req.params.id);
     if (!order) throw new Error("Sales Order not found");
 
     if (["Fully Delivered", "Cancelled"].includes(order.status)) {
@@ -370,13 +321,13 @@ export const cancelSalesOrder = async (req, res) => {
       for (const line of order.products) {
         const remaining = line.ordered_quantity - line.delivered_quantity;
         if (remaining > 0) {
-          await updateReservedQty(line.product_id, -remaining, session);
+          await updateReservedQty(line.product_id, -remaining);
         }
       }
     }
 
     order.status = "Cancelled";
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Sales",
@@ -385,17 +336,12 @@ export const cancelSalesOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["status"],
-      user: req.body.user_id || null,
-      session,
+      user: req.user?._id || null,
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
@@ -419,7 +365,7 @@ export const deleteSalesOrder = async (req, res) => {
       record_id: order._id,
       record_reference: order.so_number,
       action: "Deleted",
-      user: req.body.user_id || null,
+      user: req.user?._id || null,
     });
 
     res.json({ success: true, message: "Sales Order deleted" });

@@ -16,10 +16,7 @@ const TRACKED_FIELDS = [
 ];
 
 export const createBom = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
     const { finished_product_id, quantity, units, reference, components, operations } =
       req.body;
 
@@ -28,14 +25,14 @@ export const createBom = async (req, res) => {
       throw new Error("At least one component is required");
     }
 
-    const finishedProduct = await Product.findById(finished_product_id).session(session);
+    const finishedProduct = await Product.findById(finished_product_id);
     if (!finishedProduct) throw new Error("Finished product not found");
 
     const componentItems = [];
     for (const item of components) {
       const componentProduct = await Product.findById(
         item.component_product_id
-      ).session(session);
+      );
       if (!componentProduct) {
         throw new Error(`Component product not found: ${item.component_product_id}`);
       }
@@ -54,7 +51,7 @@ export const createBom = async (req, res) => {
       expected_duration: op.expected_duration,
     }));
 
-    const seq = await getNextSequence("bom", session);
+    const seq = await getNextSequence("bom");
     const bom_number = formatReference("BOM", seq);
 
     const bom = await Bom.create(
@@ -69,8 +66,7 @@ export const createBom = async (req, res) => {
           components: componentItems,
           operations: operationItems,
         },
-      ],
-      { session }
+      ]
     );
 
     await writeAuditLog({
@@ -78,17 +74,12 @@ export const createBom = async (req, res) => {
       record_id: bom[0]._id,
       record_reference: bom_number,
       action: "Created",
-      user: req.body.user_id || null,
-      session,
+      user: req.body?.user_id || null,
     });
 
-    await session.commitTransaction();
     res.status(201).json({ success: true, data: bom[0] });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
@@ -137,11 +128,8 @@ export const getBomById = async (req, res) => {
 };
 
 export const updateBom = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const bom = await Bom.findById(req.params.id).session(session);
+    const bom = await Bom.findById(req.params.id);
     if (!bom) throw new Error("BoM not found");
 
     const before = bom.toObject();
@@ -157,9 +145,7 @@ export const updateBom = async (req, res) => {
     } = req.body;
 
     if (finished_product_id !== undefined) {
-      const finishedProduct = await Product.findById(finished_product_id).session(
-        session
-      );
+      const finishedProduct = await Product.findById(finished_product_id);
       if (!finishedProduct) throw new Error("Finished product not found");
       bom.finished_product_id = finishedProduct._id;
       bom.finished_product_name = finishedProduct.name;
@@ -179,7 +165,7 @@ export const updateBom = async (req, res) => {
       for (const item of components) {
         const componentProduct = await Product.findById(
           item.component_product_id
-        ).session(session);
+        );
         if (!componentProduct) {
           throw new Error(`Component product not found: ${item.component_product_id}`);
         }
@@ -202,7 +188,7 @@ export const updateBom = async (req, res) => {
       }));
     }
 
-    await bom.save({ session });
+    await bom.save();
 
     await writeFieldChangeLogs({
       module: "BoM",
@@ -211,17 +197,12 @@ export const updateBom = async (req, res) => {
       before,
       after: bom.toObject(),
       fieldsToTrack: TRACKED_FIELDS,
-      user: req.body.user_id || null,
-      session,
+      user: req.body?.user_id || null,
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: bom });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
@@ -239,7 +220,7 @@ export const deleteBom = async (req, res) => {
       record_id: bom._id,
       record_reference: bom.bom_number,
       action: "Deleted",
-      user: req.body.user_id || null,
+      user: req.body?.user_id || null,
     });
 
     res.json({ success: true, message: "BoM deleted" });

@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import PurchaseOrder from "../models/purchaseOrder.model.js";
 import Product from "../models/product.model.js";
 import Vendor from "../models/vendor.model.js";
@@ -16,22 +15,19 @@ const TRACKED_FIELDS = [
 ];
 
 export const createPurchaseOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
     const { vendor_id, responsible_person, products } = req.body;
 
     if (!products || products.length === 0) {
       throw new Error("At least one product is required");
     }
 
-    const vendor = await Vendor.findById(vendor_id).session(session);
+    const vendor = await Vendor.findById(vendor_id);
     if (!vendor) throw new Error("Vendor not found");
 
     const lineItems = [];
     for (const item of products) {
-      const product = await Product.findById(item.product_id).session(session);
+      const product = await Product.findById(item.product_id);
       if (!product) throw new Error(`Product not found: ${item.product_id}`);
 
       lineItems.push({
@@ -40,47 +36,36 @@ export const createPurchaseOrder = async (req, res) => {
         ordered_quantity: item.ordered_quantity,
         received_quantity: 0,
         units: item.units || "Units",
-        cost_price:
-          item.cost_price !== undefined ? item.cost_price : product.cost_price,
+        cost_price: item.cost_price !== undefined ? item.cost_price : product.cost_price,
       });
     }
 
-    const seq = await getNextSequence("purchase_order", session);
+    const seq = await getNextSequence("purchase_order");
     const po_number = formatReference("PO", seq);
 
-    const purchaseOrder = await PurchaseOrder.create(
-      [
-        {
-          po_number,
-          vendor_id: vendor._id,
-          vendor_name: vendor.name,
-          vendor_address: vendor.vendor_address,
-          responsible_person,
-          status: "Draft",
-          products: lineItems,
-          auto_generated: req.body.auto_generated || false,
-          source_reference: req.body.source_reference || null,
-        },
-      ],
-      { session }
-    );
+    const purchaseOrder = await PurchaseOrder.create({
+      po_number,
+      vendor_id: vendor._id,
+      vendor_name: vendor.name,
+      vendor_address: vendor.vendor_address,
+      responsible_person,
+      status: "Draft",
+      products: lineItems,
+      auto_generated: req.body.auto_generated || false,
+      source_reference: req.body.source_reference || null,
+    });
 
     await writeAuditLog({
       module: "Purchase",
-      record_id: purchaseOrder[0]._id,
+      record_id: purchaseOrder._id,
       record_reference: po_number,
       action: "Created",
-      user: req.body.user_id || null,
-      session,
+      user: req.user?._id || null,
     });
 
-    await session.commitTransaction();
-    res.status(201).json({ success: true, data: purchaseOrder[0] });
+    res.status(201).json({ success: true, data: purchaseOrder });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
@@ -113,7 +98,6 @@ export const getPurchaseOrders = async (req, res) => {
   }
 };
 
-
 export const getPurchaseOrderById = async (req, res) => {
   try {
     const order = await PurchaseOrder.findById(req.params.id)
@@ -121,9 +105,7 @@ export const getPurchaseOrderById = async (req, res) => {
       .populate("vendor_id", "name vendor_address responsible_person email phone");
 
     if (!order) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Purchase Order not found" });
+      return res.status(404).json({ success: false, message: "Purchase Order not found" });
     }
 
     res.json({ success: true, data: order });
@@ -132,13 +114,9 @@ export const getPurchaseOrderById = async (req, res) => {
   }
 };
 
-
 export const updatePurchaseOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await PurchaseOrder.findById(req.params.id).session(session);
+    const order = await PurchaseOrder.findById(req.params.id);
     if (!order) throw new Error("Purchase Order not found");
 
     if (order.status !== "Draft") {
@@ -146,11 +124,10 @@ export const updatePurchaseOrder = async (req, res) => {
     }
 
     const before = order.toObject();
-
     const { vendor_id, responsible_person, products } = req.body;
 
     if (vendor_id !== undefined) {
-      const vendor = await Vendor.findById(vendor_id).session(session);
+      const vendor = await Vendor.findById(vendor_id);
       if (!vendor) throw new Error("Vendor not found");
       order.vendor_id = vendor._id;
       order.vendor_name = vendor.name;
@@ -164,7 +141,7 @@ export const updatePurchaseOrder = async (req, res) => {
     if (products !== undefined) {
       const lineItems = [];
       for (const item of products) {
-        const product = await Product.findById(item.product_id).session(session);
+        const product = await Product.findById(item.product_id);
         if (!product) throw new Error(`Product not found: ${item.product_id}`);
 
         lineItems.push({
@@ -173,14 +150,13 @@ export const updatePurchaseOrder = async (req, res) => {
           ordered_quantity: item.ordered_quantity,
           received_quantity: item.received_quantity || 0,
           units: item.units || "Units",
-          cost_price:
-            item.cost_price !== undefined ? item.cost_price : product.cost_price,
+          cost_price: item.cost_price !== undefined ? item.cost_price : product.cost_price,
         });
       }
       order.products = lineItems;
     }
 
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Purchase",
@@ -189,26 +165,18 @@ export const updatePurchaseOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: TRACKED_FIELDS,
-      user: req.body.user_id || null,
-      session,
+      user: req.user?._id || null,
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
 export const confirmPurchaseOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await PurchaseOrder.findById(req.params.id).session(session);
+    const order = await PurchaseOrder.findById(req.params.id);
     if (!order) throw new Error("Purchase Order not found");
 
     if (order.status !== "Draft") {
@@ -218,7 +186,7 @@ export const confirmPurchaseOrder = async (req, res) => {
     const before = order.toObject();
 
     order.status = "Confirmed";
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Purchase",
@@ -227,26 +195,18 @@ export const confirmPurchaseOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["status"],
-      user: req.body.user_id || null,
-      session,
+      user: req.user?._id || null,
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
 export const receivePurchaseOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await PurchaseOrder.findById(req.params.id).session(session);
+    const order = await PurchaseOrder.findById(req.params.id);
     if (!order) throw new Error("Purchase Order not found");
 
     if (!["Confirmed", "Partially Received"].includes(order.status)) {
@@ -269,14 +229,10 @@ export const receivePurchaseOrder = async (req, res) => {
       const newReceived = Number(update.received_quantity);
 
       if (newReceived < line.received_quantity) {
-        throw new Error(
-          `Received quantity cannot decrease for ${line.product_name}`
-        );
+        throw new Error(`Received quantity cannot decrease for ${line.product_name}`);
       }
       if (newReceived > line.ordered_quantity) {
-        throw new Error(
-          `Received quantity cannot exceed ordered quantity for ${line.product_name}`
-        );
+        throw new Error(`Received quantity cannot exceed ordered quantity for ${line.product_name}`);
       }
 
       const delta = newReceived - line.received_quantity;
@@ -289,8 +245,7 @@ export const receivePurchaseOrder = async (req, res) => {
           reference_type: "PurchaseOrder",
           reference_id: order._id,
           notes: `Received ${delta} of ${line.product_name} for ${order.po_number}`,
-          created_by: req.body.user_id || null,
-          session,
+          created_by: req.user?._id || null,
         });
       }
 
@@ -302,7 +257,7 @@ export const receivePurchaseOrder = async (req, res) => {
     );
 
     order.status = allFullyReceived ? "Fully Received" : "Partially Received";
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Purchase",
@@ -311,27 +266,18 @@ export const receivePurchaseOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["status", "products"],
-      user: req.body.user_id || null,
-      session,
+      user: req.user?._id || null,
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
 
-
 export const cancelPurchaseOrder = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
-
-    const order = await PurchaseOrder.findById(req.params.id).session(session);
+    const order = await PurchaseOrder.findById(req.params.id);
     if (!order) throw new Error("Purchase Order not found");
 
     if (["Fully Received", "Cancelled"].includes(order.status)) {
@@ -341,7 +287,7 @@ export const cancelPurchaseOrder = async (req, res) => {
     const before = order.toObject();
 
     order.status = "Cancelled";
-    await order.save({ session });
+    await order.save();
 
     await writeFieldChangeLogs({
       module: "Purchase",
@@ -350,34 +296,24 @@ export const cancelPurchaseOrder = async (req, res) => {
       before,
       after: order.toObject(),
       fieldsToTrack: ["status"],
-      user: req.body.user_id || null,
-      session,
+      user: req.user?._id || null,
     });
 
-    await session.commitTransaction();
     res.json({ success: true, data: order });
   } catch (err) {
-    await session.abortTransaction();
     res.status(400).json({ success: false, message: err.message });
-  } finally {
-    session.endSession();
   }
 };
-
 
 export const deletePurchaseOrder = async (req, res) => {
   try {
     const order = await PurchaseOrder.findById(req.params.id);
     if (!order) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Purchase Order not found" });
+      return res.status(404).json({ success: false, message: "Purchase Order not found" });
     }
 
     if (order.status !== "Draft") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Only Draft orders can be deleted" });
+      return res.status(400).json({ success: false, message: "Only Draft orders can be deleted" });
     }
 
     await PurchaseOrder.findByIdAndDelete(req.params.id);
@@ -387,7 +323,7 @@ export const deletePurchaseOrder = async (req, res) => {
       record_id: order._id,
       record_reference: order.po_number,
       action: "Deleted",
-      user: req.body.user_id || null,
+      user: req.user?._id || null,
     });
 
     res.json({ success: true, message: "Purchase Order deleted" });

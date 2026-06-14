@@ -1,4 +1,6 @@
 import { Search, Bell, Clock } from 'lucide-react'
+import { useAuthStore } from '@/store/useAuthStore'
+import { useAuth } from '@/context/AuthContext'
 
 interface PurchaseHeaderProps {
   searchQuery: string
@@ -13,6 +15,11 @@ export default function PurchaseHeader({
 }: PurchaseHeaderProps) {
   const tabs = ['Overview', 'Vendors', 'Performance'] as const
   const activeTab = 'Vendors'
+  
+  const { user } = useAuth()
+  const displayUserName = user?.email?.split('@')[0] || 'Admin User'
+  const displayRole = String(user?.role ?? 'Purchase Manager')
+  const displayInitials = displayUserName.slice(0, 2).toUpperCase()
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
@@ -50,17 +57,21 @@ export default function PurchaseHeader({
             <Clock className="h-5 w-5" />
           </button>
 
-          <div className="ml-2 flex items-center gap-3">
+          <button 
+            type="button"
+            onClick={() => useAuthStore.getState().setProfileOpen(true)}
+            className="ml-2 flex items-center gap-3 text-left hover:bg-slate-50 p-1.5 rounded-lg transition-colors"
+          >
             <div className="text-right">
-              <p className="text-sm font-semibold text-slate-800">Mahesh Gupta</p>
+              <p className="text-sm font-semibold text-slate-800">{displayUserName}</p>
               <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                Purchase Manager
+                {displayRole}
               </p>
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-              MG
+              {displayInitials}
             </div>
-          </div>
+          </button>
         </div>
       </div>
 

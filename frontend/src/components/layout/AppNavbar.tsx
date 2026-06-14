@@ -1,8 +1,8 @@
 import { Menu, Search, Plus, UserCircle2 } from 'lucide-react'
+import { useAuthStore } from '@/store/useAuthStore'
 
 interface AppNavbarProps {
   onToggleMenu: () => void
-  onToggleProfile: () => void
   searchQuery: string
   onSearchChange: (val: string) => void
   onCreateNew: () => void
@@ -10,7 +10,6 @@ interface AppNavbarProps {
 
 export default function AppNavbar({
   onToggleMenu,
-  onToggleProfile,
   searchQuery,
   onSearchChange,
   onCreateNew
@@ -54,7 +53,7 @@ export default function AppNavbar({
 
       <div className="flex items-center justify-end w-1/3">
         <button
-          onClick={onToggleProfile}
+          onClick={() => useAuthStore.getState().setProfileOpen(true)}
           className="p-1 rounded-full text-slate-600 hover:bg-slate-100 transition-colors"
         >
           <UserCircle2 className="h-8 w-8" />

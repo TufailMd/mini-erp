@@ -23,10 +23,6 @@ export type PageId =
   | 'audit-logs'
   | 'user-management'
   | 'user-management-detail'
-  | 'settings'
-  | 'help'
-  | 'documentation'
-  | 'analytics'
   | 'inventory'
 
 export interface PageProps {

@@ -1,4 +1,4 @@
-const AuditLog = require("../models/AuditLog");
+import AuditLog from "../models/AuditLog.js";
 
 const createAuditLog = async ({
   userId,
@@ -18,4 +18,4 @@ const createAuditLog = async ({
   }
 };
 
-module.exports = createAuditLog;
+export default createAuditLog;

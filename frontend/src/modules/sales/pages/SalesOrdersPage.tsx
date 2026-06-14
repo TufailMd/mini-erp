@@ -1,16 +1,18 @@
 import { useState, useEffect, useMemo } from 'react'
-import ErpSidebar from '@/modules/sales/components/ErpSidebar'
-import ErpHeader from '@/modules/sales/components/ErpHeader'
+import ErpSidebar from '@/components/layout/ErpSidebar'
+import ErpHeader from '@/components/layout/ErpHeader'
 import SalesPageHeader from '@/modules/sales/components/SalesPageHeader'
 import FilterBar from '@/modules/sales/components/FilterBar'
 import OrderTable from '@/modules/sales/components/OrderTable'
-import Pagination from '@/modules/sales/components/Pagination'
+import Pagination from '@/components/common/Pagination'
 import {
   erpNavItems,
   erpFooterNavItems,
+} from '@/constants/navigation'
+import {
   statusOptions,
   dateRangeOptions,
-} from '@/data/salesData'
+} from '@/constants/options'
 import { useErp } from '@/context/ErpContext'
 import { toast } from 'react-hot-toast'
 import type { HeaderTab, PageProps } from '@/types'
@@ -25,14 +27,8 @@ export default function SalesOrdersPage({ activePage, onNavigate }: PageProps) {
   const [dateRange, setDateRange] = useState('30')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [loading, setLoading] = useState(true)
 
-  const { salesOrders, setActiveOrderId } = useErp()
-
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500)
-    return () => clearTimeout(timer)
-  }, [])
+  const { salesOrders, setActiveOrderId, isLoading } = useErp()
 
   const handleButtonClick = () => {
     toast('Action triggered')
@@ -150,15 +146,15 @@ export default function SalesOrdersPage({ activePage, onNavigate }: PageProps) {
             />
 
             <OrderTable
-              orders={filteredOrders as any}
-              loading={loading}
+              orders={filteredOrders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE) as any}
+              loading={isLoading}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelect}
               onToggleSelectAll={toggleSelectAll}
               onReferenceClick={handleReferenceClick}
             />
 
-            {!loading && (
+            {!isLoading && (
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}

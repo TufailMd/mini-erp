@@ -1,14 +1,22 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PageProps } from '@/types';
-import ErpSidebar from '@/modules/sales/components/ErpSidebar';
-import { erpNavItems, erpFooterNavItems } from '@/data/salesData';
+import ErpSidebar from '@/components/layout/ErpSidebar';
+import { erpNavItems, erpFooterNavItems } from '@/constants/navigation';
 import InventoryHeader from '@/modules/inventory/components/InventoryHeader';
 import InventoryStatCards from '@/modules/inventory/components/InventoryStatCards';
 import InventoryFilterBar from '@/modules/inventory/components/InventoryFilterBar';
 import InventoryTable from '@/modules/inventory/components/InventoryTable';
-import InventoryPagination from '@/modules/inventory/components/InventoryPagination';
+import { useAuth } from '@/context/AuthContext';
+import { useErp } from '@/context/ErpContext';
 
 const InventoryPage: React.FC<PageProps> = ({ activePage, onNavigate }) => {
+  const { user } = useAuth();
+  const { refreshData } = useErp();
+
+  // Refresh backend data each time this page mounts
+  useEffect(() => {
+    refreshData()
+  }, [])
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
       {/* Sidebar */}
@@ -18,9 +26,9 @@ const InventoryPage: React.FC<PageProps> = ({ activePage, onNavigate }) => {
         navItems={erpNavItems}
         footerItems={erpFooterNavItems}
         onNewRecordClick={() => {}}
-        userName="Admin User"
-        userRole="System Administrator"
-        userInitials="AD"
+        userName={user?.email ?? 'Admin'}
+        userRole={String(user?.role ?? 'ADMIN')}
+        userInitials={(user?.email ?? 'A').slice(0, 2).toUpperCase()}
       />
 
       {/* Main Content */}
@@ -31,7 +39,6 @@ const InventoryPage: React.FC<PageProps> = ({ activePage, onNavigate }) => {
             <InventoryStatCards />
             <InventoryFilterBar />
             <InventoryTable />
-            <InventoryPagination />
           </div>
         </main>
       </div>
