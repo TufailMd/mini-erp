@@ -1,16 +1,18 @@
 import User from "../models/User.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import generateToken from "../utils/generateToken.js";
-
-import createAuditLog from "../utils/createAuditLog.js";
+import {
+  findUserByEmail,
+  hashPassword,
+  verifyPassword,
+  createAuthToken,
+} from "../services/auth.service.js";
+import { createLegacyAuditLog } from "../services/audit.service.js";
 
 export const register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await findUserByEmail(email);
 
     if (existingUser) {
       return res.status(400).json({
@@ -19,7 +21,7 @@ export const register = async (req, res) => {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
     // Create user
     const user = await User.create({
@@ -39,7 +41,7 @@ export const register = async (req, res) => {
       },
     });
 
-    await createAuditLog({
+    await createLegacyAuditLog({
       userId: user._id,
       action: "REGISTER",
       entity: "User",
@@ -60,7 +62,7 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
 
     // Find user
-    const user = await User.findOne({ email });
+    const user = await findUserByEmail(email);
 
     if (!user) {
       return res.status(400).json({
@@ -69,7 +71,7 @@ export const login = async (req, res) => {
     }
 
     // Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await verifyPassword(password, user.password);
 
     if (!isMatch) {
       return res.status(400).json({
@@ -78,7 +80,7 @@ export const login = async (req, res) => {
     }
 
     // Generate JWT
-    const token = generateToken(user._id);
+    const token = createAuthToken(user._id);
 
     res.status(200).json({
       message: "Login successful",
@@ -91,7 +93,7 @@ export const login = async (req, res) => {
       },
     });
 
-    await createAuditLog({
+    await createLegacyAuditLog({
       userId: user._id,
       action: "LOGIN",
       entity: "User",

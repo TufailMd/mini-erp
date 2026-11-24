@@ -2,8 +2,8 @@ import PurchaseOrder from "../models/purchaseOrder.model.js";
 import Product from "../models/product.model.js";
 import Vendor from "../models/vendor.model.js";
 import { getNextSequence, formatReference } from "../models/counter.model.js";
-import { recordStockMovement } from "../utils/stockHelper.js";
-import { writeAuditLog, writeFieldChangeLogs } from "../utils/auditLogHelper.js";
+import { recordStockMovement } from "../services/stock.service.js";
+import { writeAuditLog, writeFieldChangeLogs } from "../services/audit.service.js";
 
 const TRACKED_FIELDS = [
   "vendor_id",

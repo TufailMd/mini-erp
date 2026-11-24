@@ -1,5 +1,5 @@
 import Product from "../models/product.model.js";
-import { recordStockMovement } from "../utils/stockHelper.js";
+import { recordStockMovement } from "../services/stock.service.js";
 
 export const createProduct = async (req, res) => {
   try {

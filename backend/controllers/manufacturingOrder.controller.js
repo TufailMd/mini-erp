@@ -7,8 +7,8 @@ import {
   recordStockMovement,
   updateReservedQty,
   getFreeQty,
-} from "../utils/stockHelper.js";
-import { writeAuditLog, writeFieldChangeLogs } from "../utils/auditLogHelper.js";
+} from "../services/stock.service.js";
+import { writeAuditLog, writeFieldChangeLogs } from "../services/audit.service.js";
 
 const TRACKED_FIELDS = [
   "finished_product_id",

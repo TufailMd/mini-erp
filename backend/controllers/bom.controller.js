@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Bom from "../models/bom.model.js";
 import Product from "../models/product.model.js";
 import { getNextSequence, formatReference } from "../models/counter.model.js";
-import { writeAuditLog, writeFieldChangeLogs } from "../utils/auditLogHelper.js";
+import { writeAuditLog, writeFieldChangeLogs } from "../services/audit.service.js";
 
 const TRACKED_FIELDS = [
   "finished_product_id",

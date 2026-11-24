@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { MANUFACTURING_ORDER_STATUSES } from "../constants/statuses.js";
 
 const moComponentSchema = new mongoose.Schema(
   {
@@ -119,7 +120,7 @@ const manufacturingOrderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Draft", "Confirmed", "In Progress", "Done", "Cancelled"],
+      enum: MANUFACTURING_ORDER_STATUSES,
       default: "Draft",
     },
 

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { PURCHASE_ORDER_STATUSES } from "../constants/statuses.js";
 
 const purchaseOrderLineSchema = new mongoose.Schema(
   {
@@ -83,7 +84,7 @@ const purchaseOrderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Draft", "Confirmed", "Partially Received", "Fully Received", "Cancelled"],
+      enum: PURCHASE_ORDER_STATUSES,
       default: "Draft",
     },
 

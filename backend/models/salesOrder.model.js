@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { SALES_ORDER_STATUSES } from "../constants/statuses.js";
 
 const salesOrderLineSchema = new mongoose.Schema(
   {
@@ -84,7 +85,7 @@ const salesOrderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Draft", "Confirmed", "Partially Delivered", "Fully Delivered", "Cancelled"],
+      enum: SALES_ORDER_STATUSES,
       default: "Draft",
     },
 

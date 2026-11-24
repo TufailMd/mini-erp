@@ -175,6 +175,11 @@ export default function PurchaseOrderDetailPage({
   }
 
   const handleCancel = async () => {
+    if (!activeOrder) {
+      toast.error('Purchase Order is unavailable')
+      return
+    }
+
     try {
       await apiClient.post(`/purchase/${activeOrder.id}/cancel`)
       setOrderStatus('Cancelled')
@@ -186,10 +191,20 @@ export default function PurchaseOrderDetailPage({
   }
 
   const handleConfirm = async () => {
+    if (!activeOrder) {
+      toast.error('Purchase Order is unavailable')
+      return
+    }
+
     await confirmPurchaseOrder(activeOrder.id)
   }
 
   const handleReceive = async () => {
+    if (!activeOrder) {
+      toast.error('Purchase Order is unavailable')
+      return
+    }
+
     await receivePurchaseOrder(activeOrder.id)
   }
 

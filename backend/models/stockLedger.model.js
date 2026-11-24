@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import {
+  STOCK_TRANSACTION_TYPES,
+  STOCK_REFERENCE_TYPES,
+} from "../constants/transactions.js";
 
 const stockLedgerSchema = new mongoose.Schema(
   {
@@ -10,13 +14,7 @@ const stockLedgerSchema = new mongoose.Schema(
 
     transaction_type: {
       type: String,
-      enum: [
-        "purchase_receipt",
-        "sales_delivery",
-        "manufacturing_produce",
-        "manufacturing_consume",
-        "manual_adjustment",
-      ],
+      enum: STOCK_TRANSACTION_TYPES,
       required: true,
     },
 
@@ -32,7 +30,7 @@ const stockLedgerSchema = new mongoose.Schema(
 
     reference_type: {
       type: String,
-      enum: ["SalesOrder", "PurchaseOrder", "ManufacturingOrder", "Manual"],
+      enum: STOCK_REFERENCE_TYPES,
       required: true,
     },
 
