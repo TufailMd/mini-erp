@@ -12,6 +12,7 @@ import purchaseOrderRoutes from "./routes/purchaseOrder.routes.js";
 import manufacturingOrderRoutes from "./routes/manufacturingOrder.routes.js";
 import bomRoutes from "./routes/bom.routes.js";
 import vendorRoutes from "./routes/vendor.routes.js";
+import customerRoutes from "./routes/customer.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 
 import authRoutes from "./routes/auth.route.js";
@@ -41,6 +42,7 @@ app.use("/api/purchase", purchaseOrderRoutes);
 app.use("/api/manufacturing", manufacturingOrderRoutes);
 app.use("/api/boms", bomRoutes);
 app.use("/api/vendors", vendorRoutes);
+app.use("/api/customers", customerRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
 app.use("/api/auth", authRoutes);

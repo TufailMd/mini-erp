@@ -12,17 +12,37 @@ import { erpNavItems, erpFooterNavItems } from '@/constants/navigation'
 import type { PageProps, CreateLineItem, AssignedUser } from '@/types'
 import { toast } from 'react-hot-toast'
 import { useErp } from '@/context/ErpContext'
+import { customerApi } from '@/api/customerApi'
+import type { ErpCustomer } from '@/types/erp'
+
+const CUSTOMER_PAGE_SIZE = 100
+
+function formatCustomerAddress(customer: ErpCustomer): string {
+  const cityAndState = [customer.city, customer.state]
+    .filter(Boolean)
+    .join(', ')
+  const location = [cityAndState, customer.postal_code]
+    .filter(Boolean)
+    .join(' ')
+
+  return [customer.billing_address, location, customer.country]
+    .filter(Boolean)
+    .join(', ')
+}
 
 export default function SalesOrderCreatePage({
   onNavigate,
 }: PageProps) {
   const { createSalesOrder, products } = useErp()
   const [loading, setLoading] = useState(false)
+  const [customers, setCustomers] = useState<ErpCustomer[]>([])
+  const [customersLoading, setCustomersLoading] = useState(true)
+  const [customersError, setCustomersError] = useState<string | null>(null)
   const TAX_RATE = 18
-  const customerOptions = ['Rahul Verma', 'Priya Sharma', 'Amit Patel', 'Sita Devi']
   const salesRepOptions = ['John Doe', 'Jane Smith', 'Mahesh Gupta']
 
   // Form state
+  const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0])
   const [assignedUser, setAssignedUser] = useState<AssignedUser>({
@@ -33,6 +53,52 @@ export default function SalesOrderCreatePage({
   const [lineItems, setLineItems] = useState<CreateLineItem[]>([])
   const [status, setStatus] = useState('Draft')
   const [billingAddress, setBillingAddress] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchActiveCustomers = async () => {
+      setCustomersLoading(true)
+      setCustomersError(null)
+      try {
+        const firstPage = await customerApi.getCustomers({
+          is_active: true,
+          page: 1,
+          limit: CUSTOMER_PAGE_SIZE,
+        })
+        const activeCustomers = firstPage.data.filter(
+          (customer) => customer.is_active,
+        )
+
+        for (let page = 2; page <= firstPage.totalPages; page += 1) {
+          const result = await customerApi.getCustomers({
+            is_active: true,
+            page,
+            limit: CUSTOMER_PAGE_SIZE,
+          })
+          activeCustomers.push(
+            ...result.data.filter((customer) => customer.is_active),
+          )
+        }
+
+        if (!cancelled) setCustomers(activeCustomers)
+      } catch (error: unknown) {
+        if (!cancelled) {
+          const message =
+            error instanceof Error ? error.message : 'Failed to load customers'
+          setCustomersError(message)
+          toast.error(message)
+        }
+      } finally {
+        if (!cancelled) setCustomersLoading(false)
+      }
+    }
+
+    void fetchActiveCustomers()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Computed
   const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0)
@@ -53,6 +119,18 @@ export default function SalesOrderCreatePage({
   }
 
   const handleConfirm = async () => {
+    if (customersLoading) {
+      toast.error('Wait for the customer list to finish loading')
+      return
+    }
+    if (customersError) {
+      toast.error('Unable to create the order until customers can be loaded')
+      return
+    }
+    if (customers.length === 0) {
+      toast.error('No active customers are available')
+      return
+    }
     if (!customerName) {
       toast.error('Customer name is required')
       return
@@ -86,6 +164,15 @@ export default function SalesOrderCreatePage({
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCustomerChange = (customerId: string) => {
+    const customer = customers.find((item) => item._id === customerId)
+    if (!customer) return
+
+    setSelectedCustomerId(customer._id)
+    setCustomerName(customer.name)
+    setBillingAddress(formatCustomerAddress(customer))
   }
 
   const handleAssignedUserChange = (name: string) => {
@@ -167,8 +254,14 @@ export default function SalesOrderCreatePage({
                   customerName={customerName}
                   orderDate={orderDate}
                   billingAddress={billingAddress}
-                  customerOptions={customerOptions}
-                  onCustomerChange={setCustomerName}
+                  selectedCustomerId={selectedCustomerId}
+                  customerOptions={customers.map((customer) => ({
+                    id: customer._id,
+                    label: `${customer.name} (${customer.customer_code})`,
+                  }))}
+                  customersLoading={customersLoading}
+                  customersError={customersError}
+                  onCustomerChange={handleCustomerChange}
                   onDateChange={setOrderDate}
                   onAddressChange={setBillingAddress}
                 />

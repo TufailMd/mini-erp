@@ -4,6 +4,8 @@ export type PageId =
   | 'dashboard'
   | 'products'
   | 'product-detail'
+  | 'customers'
+  | 'customer-detail'
   | 'sales'
   | 'sales-order-detail'
   | 'sales-order-create'

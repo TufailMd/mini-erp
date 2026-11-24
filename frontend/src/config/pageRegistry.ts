@@ -3,6 +3,8 @@ import type { PageId, PageProps } from '@/types'
 import DashboardPage from '@/modules/dashboard/pages/DashboardPage'
 import ProductsPage from '@/modules/products/pages/ProductsPage'
 import ProductDetailPage from '@/modules/products/pages/ProductDetailPage'
+import CustomersPage from '@/modules/customers/pages/CustomersPage'
+import CustomerDetailPage from '@/modules/customers/pages/CustomerDetailPage'
 import SalesOrdersPage from '@/modules/sales/pages/SalesOrdersPage'
 import SalesOrderDetailPage from '@/modules/sales/pages/SalesOrderDetailPage'
 import SalesOrderCreatePage from '@/modules/sales/pages/SalesOrderCreatePage'
@@ -32,6 +34,8 @@ export const pageRegistry: PageConfig[] = [
   { id: 'dashboard', label: 'Dashboard', component: DashboardPage },
   { id: 'products', label: 'Products', component: ProductsPage },
   { id: 'product-detail', label: 'Product Detail', component: ProductDetailPage },
+  { id: 'customers', label: 'Customers', component: CustomersPage },
+  { id: 'customer-detail', label: 'Customer Detail', component: CustomerDetailPage },
   { id: 'sales', label: 'Sales Orders', component: SalesOrdersPage },
   { id: 'sales-order-detail', label: 'Sales Order Detail', component: SalesOrderDetailPage },
   { id: 'sales-order-create', label: 'Sales Order Create', component: SalesOrderCreatePage },

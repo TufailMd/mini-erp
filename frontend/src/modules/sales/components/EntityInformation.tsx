@@ -1,12 +1,20 @@
 import { Users, ChevronDown, Calendar } from 'lucide-react'
 import { useState } from 'react'
 
+interface CustomerOption {
+  id: string
+  label: string
+}
+
 interface EntityInformationProps {
   customerName: string
   orderDate: string
   billingAddress: string
-  customerOptions: string[]
-  onCustomerChange: (value: string) => void
+  selectedCustomerId: string
+  customerOptions: CustomerOption[]
+  customersLoading: boolean
+  customersError: string | null
+  onCustomerChange: (customerId: string) => void
   onDateChange: (value: string) => void
   onAddressChange: (value: string) => void
 }
@@ -15,12 +23,20 @@ export default function EntityInformation({
   customerName,
   orderDate,
   billingAddress,
+  selectedCustomerId,
   customerOptions,
+  customersLoading,
+  customersError,
   onCustomerChange,
   onDateChange,
   onAddressChange,
 }: EntityInformationProps) {
   const [showDropdown, setShowDropdown] = useState(false)
+  const selectedCustomer = customerOptions.find(
+    (option) => option.id === selectedCustomerId,
+  )
+  const customerSelectorDisabled =
+    customersLoading || Boolean(customersError) || customerOptions.length === 0
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -42,9 +58,15 @@ export default function EntityInformation({
             <button
               type="button"
               onClick={() => setShowDropdown(!showDropdown)}
-              className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 transition-colors hover:border-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              disabled={customerSelectorDisabled}
+              aria-expanded={showDropdown}
+              className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 transition-colors hover:border-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
             >
-              <span>{customerName}</span>
+              <span>
+                {customersLoading
+                  ? 'Loading customers...'
+                  : selectedCustomer?.label || customerName || 'Select a customer'}
+              </span>
               <ChevronDown
                 className={`h-4 w-4 text-slate-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`}
               />
@@ -53,24 +75,33 @@ export default function EntityInformation({
               <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
                 {customerOptions.map((option) => (
                   <button
-                    key={option}
+                    key={option.id}
                     type="button"
                     onClick={() => {
-                      onCustomerChange(option)
+                      onCustomerChange(option.id)
                       setShowDropdown(false)
                     }}
                     className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-indigo-50 ${
-                      option === customerName
+                      option.id === selectedCustomerId
                         ? 'bg-indigo-50 font-medium text-indigo-700'
                         : 'text-slate-700'
                      }`}
                   >
-                    {option}
+                    {option.label}
                   </button>
                 ))}
               </div>
             )}
           </div>
+          {customersError ? (
+            <p role="alert" className="mt-1.5 text-xs text-red-600">
+              Could not load active customers: {customersError}
+            </p>
+          ) : !customersLoading && customerOptions.length === 0 ? (
+            <p className="mt-1.5 text-xs text-slate-500">
+              No active customers available.
+            </p>
+          ) : null}
         </div>
 
         <div>

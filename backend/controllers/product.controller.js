@@ -1,21 +1,11 @@
-import Product from "../models/product.model.js";
-import { recordStockMovement } from "../services/stock.service.js";
+import * as productService from "../services/product.service.js";
 
 export const createProduct = async (req, res) => {
   try {
-    const product = await Product.create(req.body);
-
-    if (req.body.on_hand_qty && req.body.on_hand_qty > 0) {
-      await recordStockMovement({
-        product_id: product._id,
-        transaction_type: "manual_adjustment",
-        quantity: req.body.on_hand_qty,
-        reference_type: "Manual",
-        reference_id: product._id,
-        notes: "Initial stock upon product creation",
-        created_by: req.user?._id || null,
-      });
-    }
+    const product = await productService.createProduct(
+      req.body,
+      req.user?._id
+    );
 
     res.status(201).json({ success: true, data: product });
   } catch (err) {
@@ -25,24 +15,8 @@ export const createProduct = async (req, res) => {
 
 export const getProducts = async (req, res) => {
   try {
-    const { search, category_id, page = 1, limit = 20 } = req.query;
-    const filter = {};
-
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { sku: { $regex: search, $options: "i" } },
-      ];
-    }
-    if (category_id) filter.category_id = category_id;
-
-    const products = await Product.find(filter)
-      .populate("category_id vendor_id bom_id")
-      .skip((page - 1) * limit)
-      .limit(Number(limit))
-      .sort({ createdAt: -1 });
-
-    const total = await Product.countDocuments(filter);
+    const { products, total, page } =
+      await productService.getProducts(req.query);
 
     res.json({ success: true, data: products, total, page: Number(page) });
   } catch (err) {
@@ -52,9 +26,7 @@ export const getProducts = async (req, res) => {
 
 export const getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate(
-      "category_id vendor_id bom_id"
-    );
+    const product = await productService.getProductById(req.params.id);
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
@@ -66,13 +38,13 @@ export const getProductById = async (req, res) => {
 
 export const updateProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await productService.updateProduct(
+      req.params.id,
+      req.body
+    );
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
-
-    Object.assign(product, req.body);
-    await product.save();
 
     res.json({ success: true, data: product });
   } catch (err) {
@@ -82,7 +54,7 @@ export const updateProduct = async (req, res) => {
 
 export const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const product = await productService.deleteProduct(req.params.id);
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }

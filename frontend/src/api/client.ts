@@ -1,4 +1,9 @@
 import axios from "axios";
+import type { AxiosRequestConfig } from "axios";
+
+export interface PreservedApiRequestConfig extends AxiosRequestConfig {
+  preserveResponseEnvelope?: boolean;
+}
 
 const apiClient = axios.create({
   baseURL: "http://localhost:5000/api",
@@ -26,6 +31,10 @@ apiClient.interceptors.response.use(
     if (response.data && response.data.success !== undefined) {
       if (!response.data.success) {
         return Promise.reject(new Error(response.data.message || "API Error"));
+      }
+      const config = response.config as PreservedApiRequestConfig;
+      if (config.preserveResponseEnvelope) {
+        return response.data;
       }
       return response.data.data; // unwrap actual data
     }

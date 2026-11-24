@@ -1,6 +1,70 @@
 export type ProcurementType = 'MTO' | 'MTS'
 export type ProcurementMethod = 'Purchase' | 'Manufacturing'
 
+export type CustomerType = 'INDIVIDUAL' | 'BUSINESS'
+
+export interface ErpCustomer {
+  _id: string
+  customer_code: string
+  name: string
+  normalized_name: string
+  customer_type: CustomerType
+  email?: string | null
+  phone?: string | null
+  alternate_phone?: string | null
+  billing_address?: string | null
+  shipping_address?: string | null
+  city?: string | null
+  state?: string | null
+  postal_code?: string | null
+  country?: string | null
+  company_name?: string | null
+  tax_id?: string | null
+  gst_number?: string | null
+  is_active: boolean
+  notes?: string | null
+  created_by?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface CustomerListParams {
+  search?: string
+  customer_type?: CustomerType
+  is_active?: boolean | 'true' | 'false'
+  page?: number
+  limit?: number
+}
+
+export interface CustomerPagination {
+  data: ErpCustomer[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export interface CreateCustomerInput {
+  name: string
+  customer_type?: CustomerType
+  email?: string
+  phone?: string
+  alternate_phone?: string
+  billing_address?: string
+  shipping_address?: string
+  city?: string
+  state?: string
+  postal_code?: string
+  country?: string
+  company_name?: string
+  tax_id?: string
+  gst_number?: string
+  is_active?: boolean
+  notes?: string
+}
+
+export type UpdateCustomerInput = Partial<CreateCustomerInput>
+
 export interface ErpProduct {
   id: string
   name: string
