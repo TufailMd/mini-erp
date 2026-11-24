@@ -99,6 +99,20 @@ export interface SalesOrder {
   createdAt: string
 }
 
+export interface SalesOrderUpdateProduct {
+  product_id: string
+  ordered_quantity: number
+  units?: string
+  sales_unit_price?: number
+}
+
+export interface UpdateSalesOrderInput {
+  customer?: string
+  customer_address?: string
+  sales_person?: string
+  products?: SalesOrderUpdateProduct[]
+}
+
 export interface PurchaseOrder {
   id: string
   reference: string

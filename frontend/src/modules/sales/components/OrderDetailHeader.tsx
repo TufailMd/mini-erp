@@ -7,6 +7,9 @@ interface OrderDetailHeaderProps {
   onCancel: () => void
   onDeliver: () => void
   onConfirm: () => void
+  onSave?: () => void
+  saveDisabled?: boolean
+  saving?: boolean
   onBackToSales: () => void
   onDownloadPDF?: () => void
 }
@@ -24,6 +27,9 @@ export default function OrderDetailHeader({
   onCancel,
   onDeliver,
   onConfirm,
+  onSave,
+  saveDisabled = false,
+  saving = false,
   onBackToSales,
   onDownloadPDF,
 }: OrderDetailHeaderProps) {
@@ -54,6 +60,16 @@ export default function OrderDetailHeader({
         </div>
 
         <div className="flex items-center gap-2">
+          {onSave && (
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saveDisabled || saving}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
           <button
             type="button"
             onClick={onCancel}

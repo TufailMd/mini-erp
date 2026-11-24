@@ -5,6 +5,9 @@ import app from "../app.js";
 import User from "../models/User.js";
 import Customer from "../models/customer.model.js";
 import Counter from "../models/counter.model.js";
+import SalesOrder from "../models/salesOrder.model.js";
+import Product from "../models/product.model.js";
+import AuditLog from "../models/auditLog.model.js";
 
 const startServer = () =>
   new Promise((resolve) => {
@@ -40,6 +43,7 @@ test("unknown routes return the standard 404 response", async (t) => {
 });
 
 const customerId = "64b000000000000000000001";
+const salesOrderId = "64b000000000000000000003";
 const userId = "64b000000000000000000002";
 
 const authenticatedHeaders = (t) => {
@@ -461,6 +465,248 @@ test("PUT /api/customers/:id updates permitted fields", async (t) => {
   assert.equal(body.data.customer_code, "CUS-000001");
   assert.equal(body.data.normalized_name, "old name");
   assert.equal(body.data.created_by, userId);
+});
+
+test("PUT /api/customers/:id reactivates an inactive customer", async (t) => {
+  const headers = authenticatedHeaders(t);
+  const customer = {
+    _id: customerId,
+    name: "Inactive Customer",
+    is_active: false,
+    customer_code: "CUS-000001",
+    normalized_name: "inactive customer",
+    created_by: userId,
+    async save() {
+      return this;
+    },
+  };
+  t.mock.method(Customer, "findById", async () => customer);
+
+  const server = await startServer();
+  t.after(() => server.close());
+
+  const address = server.address();
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/api/customers/${customerId}`,
+    {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        is_active: true,
+        customer_code: "CUS-999999",
+        normalized_name: "forged-name",
+        created_by: "64b000000000000000000999",
+      }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.success, true);
+  assert.equal(body.data.is_active, true);
+  assert.equal(customer.is_active, true);
+  assert.equal(body.data.customer_code, "CUS-000001");
+  assert.equal(body.data.normalized_name, "inactive customer");
+  assert.equal(body.data.created_by, userId);
+});
+
+test("PUT /api/customers/:id returns 404 for a nonexistent customer", async (t) => {
+  const headers = authenticatedHeaders(t);
+  t.mock.method(Customer, "findById", async () => null);
+
+  const server = await startServer();
+  t.after(() => server.close());
+
+  const address = server.address();
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/api/customers/${customerId}`,
+    {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ is_active: true }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(body, {
+    success: false,
+    message: "Customer not found",
+  });
+});
+
+test("authenticated PUT /api/sales/:id updates a Draft Sales Order safely", async (t) => {
+  const headers = authenticatedHeaders(t);
+  const salesProductId = "64b000000000000000000010";
+  const order = {
+    _id: salesOrderId,
+    so_number: "SO-000001",
+    creation_date: "2026-01-01T00:00:00.000Z",
+    customer: "Old Customer",
+    customer_address: "Old Address",
+    sales_person: userId,
+    status: "Draft",
+    products: [],
+    async save() {
+      return this;
+    },
+    toObject() {
+      return {
+        _id: this._id,
+        so_number: this.so_number,
+        creation_date: this.creation_date,
+        customer: this.customer,
+        customer_address: this.customer_address,
+        sales_person: this.sales_person,
+        status: this.status,
+        products: this.products,
+      };
+    },
+  };
+
+  t.mock.method(SalesOrder, "findById", async () => order);
+  t.mock.method(Product, "findById", async () => ({
+    _id: salesProductId,
+    name: "Test Product",
+    on_hand_qty: 100,
+    reserved_qty: 10,
+  }));
+  t.mock.method(AuditLog, "insertMany", async () => []);
+
+  const server = await startServer();
+  t.after(() => server.close());
+
+  const address = server.address();
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/api/sales/${salesOrderId}`,
+    {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        customer: "New Customer",
+        customer_address: "New Billing Address",
+        so_number: "SO-999999",
+        creation_date: "2027-01-01T00:00:00.000Z",
+        status: "Confirmed",
+        delivered_quantity: 99,
+        products: [
+          {
+            product_id: salesProductId,
+            ordered_quantity: 5,
+            sales_unit_price: 250,
+            delivered_quantity: 99,
+          },
+        ],
+      }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.success, true);
+  assert.equal(body.data.customer, "New Customer");
+  assert.equal(body.data.customer_address, "New Billing Address");
+  assert.equal(body.data.status, "Draft");
+  assert.equal(body.data.so_number, "SO-000001");
+  assert.equal(body.data.creation_date, "2026-01-01T00:00:00.000Z");
+  assert.equal(body.data.products[0].delivered_quantity, 0);
+});
+
+test("PUT /api/sales/:id rejects an unauthenticated update", async (t) => {
+  const server = await startServer();
+  t.after(() => server.close());
+
+  const address = server.address();
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/api/sales/${salesOrderId}`,
+    {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ customer: "Unauthorized Change" }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.deepEqual(body, { message: "Not authorized, no token" });
+});
+
+test("PUT /api/sales/:id rejects a malformed ObjectId", async (t) => {
+  const headers = authenticatedHeaders(t);
+  const server = await startServer();
+  t.after(() => server.close());
+
+  const address = server.address();
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/api/sales/not-an-object-id`,
+    {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ customer: "Changed" }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(body, {
+    success: false,
+    message: "Invalid ObjectId",
+  });
+});
+
+test("PUT /api/sales/:id returns 404 for a nonexistent Sales Order", async (t) => {
+  const headers = authenticatedHeaders(t);
+  t.mock.method(SalesOrder, "findById", async () => null);
+
+  const server = await startServer();
+  t.after(() => server.close());
+
+  const address = server.address();
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/api/sales/${salesOrderId}`,
+    {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ customer: "Changed" }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(body, {
+    success: false,
+    message: "Sales Order not found",
+  });
+});
+
+test("PUT /api/sales/:id rejects a non-Draft Sales Order", async (t) => {
+  const headers = authenticatedHeaders(t);
+  const order = {
+    _id: salesOrderId,
+    so_number: "SO-000002",
+    customer: "Existing Customer",
+    customer_address: "Existing Address",
+    status: "Confirmed",
+  };
+  t.mock.method(SalesOrder, "findById", async () => order);
+
+  const server = await startServer();
+  t.after(() => server.close());
+
+  const address = server.address();
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/api/sales/${salesOrderId}`,
+    {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ customer: "Should Not Persist" }),
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.success, false);
+  assert.match(body.message, /Only Draft orders can be edited/);
 });
 
 test("DELETE /api/customers/:id deactivates a customer without deleting it", async (t) => {

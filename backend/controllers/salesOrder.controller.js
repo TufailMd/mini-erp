@@ -128,7 +128,12 @@ export const getSalesOrderById = async (req, res) => {
 export const updateSalesOrder = async (req, res) => {
   try {
     const order = await SalesOrder.findById(req.params.id);
-    if (!order) throw new Error("Sales Order not found");
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Sales Order not found",
+      });
+    }
 
     if (order.status !== "Draft") {
       throw new Error("Only Draft orders can be edited");
@@ -154,7 +159,7 @@ export const updateSalesOrder = async (req, res) => {
           product_name: product.name,
           availability: freeQty,
           ordered_quantity: item.ordered_quantity,
-          delivered_quantity: item.delivered_quantity || 0,
+          delivered_quantity: 0,
           units: item.units || "Units",
           sales_unit_price:
             item.sales_unit_price !== undefined
